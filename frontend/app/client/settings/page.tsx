@@ -127,7 +127,7 @@ function ClientSettingsContent() {
                   </div>
                 </form>
               ) : (
-                <p className="text-gray-500">Click "Change Password" to update your account password.</p>
+                <p className="text-gray-500">Click &#34;Change Password&#34; to update your account password.</p>
               )}
             </Card>
 

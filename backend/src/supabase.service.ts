@@ -3,7 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseService {
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient<any>;
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -13,7 +13,10 @@ export class SupabaseService {
       throw new Error('Supabase URL and key must be provided');
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient(
+      supabaseUrl,
+      supabaseKey,
+    ) as SupabaseClient<any>;
   }
 
   getClient(): SupabaseClient {
@@ -21,7 +24,7 @@ export class SupabaseService {
   }
 
   // Example method: Fetch users from a 'users' table
-  async getUsers() {
+  async getUsers(): Promise<any[]> {
     const { data, error } = await this.supabase.from('users').select('*');
     if (error) throw error;
     return data;

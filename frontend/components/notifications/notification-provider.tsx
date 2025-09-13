@@ -13,7 +13,7 @@ export interface Notification {
   read: boolean
   priority: "low" | "medium" | "high"
   actionUrl?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface NotificationContextType {

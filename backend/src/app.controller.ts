@@ -18,13 +18,25 @@ export class AppController {
   async testDatabaseConnection() {
     try {
       // Simple test: Try to select from a table (adjust 'users' if your table name differs)
-      const { data, error } = await this.supabaseService.getClient().from('users').select('*').limit(1);
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('users')
+        .select('*')
+        .limit(1);
       if (error) {
         return { status: 'error', message: error.message };
       }
-      return { status: 'success', message: 'Database connection is working!', data };
-    } catch (err) {
-      return { status: 'error', message: err.message };
+      return {
+        status: 'success',
+        message: 'Database connection is working!',
+        data,
+      };
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        return { status: 'error', message: err.message };
+      } else {
+        return { status: 'error', message: 'Unknown error' };
+      }
     }
   }
 }

@@ -6,8 +6,8 @@ import { authAPI } from "@/lib/auth-api"
 
 export default function AuthDebugPage() {
   const { user, isLoading, hasValidToken } = useAuth()
-  const [debugInfo, setDebugInfo] = useState<any>({})
-  const [testResults, setTestResults] = useState<any>({})
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown>>({})
+  const [testResults, setTestResults] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     const gatherDebugInfo = () => {
@@ -21,7 +21,7 @@ export default function AuthDebugPage() {
           if (parts.length === 3) {
             decodedToken = JSON.parse(atob(parts[1]))
           }
-        } catch (e) {
+        } catch {
           decodedToken = { error: 'Failed to decode token' }
         }
       }

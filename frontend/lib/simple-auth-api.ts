@@ -58,7 +58,7 @@ class SimpleAuthAPI {
 
       if (!response.ok) {
         const error = new Error(data.message || `HTTP error! status: ${response.status}`)
-        ;(error as any).status = response.status
+        ;(error as Error & { status: number }).status = response.status
         throw error
       }
 
@@ -96,7 +96,7 @@ class SimpleAuthAPI {
     }
   }
 
-  public async createDemoUser(): Promise<any> {
+  public async createDemoUser(): Promise<Record<string, unknown>> {
     return this.request('/auth/create-demo-user', { method: 'POST' })
   }
 

@@ -181,7 +181,7 @@ export default function PerformerProfile({ params }: { params: { id: string } })
                           </div>
                         </div>
                         <p className="text-gray/80 mb-2">
-                          Amazing performance at our wedding! Kasun's voice brought tears to everyone's eyes. Highly
+                          Amazing performance at our wedding! Kasun&apos;s voice brought tears to everyone&apos;s eyes. Highly
                           professional and punctual. Would definitely book again!
                         </p>
                         <p className="text-gray/50 text-sm">2 weeks ago</p>

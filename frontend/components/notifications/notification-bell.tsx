@@ -2,14 +2,14 @@
 
 import { useState } from "react"
 import { Bell, X } from "lucide-react"
-import { useNotifications, getNotificationIcon } from "./notification-provider"
+import { useNotifications, getNotificationIcon, type Notification } from "./notification-provider"
 import { formatDistanceToNow } from "date-fns"
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id)
     if (notification.actionUrl) {
       window.location.href = notification.actionUrl

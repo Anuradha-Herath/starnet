@@ -23,28 +23,28 @@ export function AsgardeoNavigation() {
     }
   }
 
-  const getUserInitials = (user: any) => {
+  const getUserInitials = (user: Record<string, unknown>) => {
     if (!user) return "U"
     
-    const firstName = user.given_name || user.name?.split(' ')[0] || ''
-    const lastName = user.family_name || user.name?.split(' ')[1] || ''
+    const firstName = user.given_name as string || (user.name as string)?.split(' ')[0] || ''
+    const lastName = user.family_name as string || (user.name as string)?.split(' ')[1] || ''
     
     if (firstName && lastName) {
       return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
     } else if (firstName) {
       return firstName.charAt(0).toUpperCase()
-    } else if (user.email) {
-      return user.email.charAt(0).toUpperCase()
+    } else if (user.email as string) {
+      return (user.email as string).charAt(0).toUpperCase()
     }
     return "U"
   }
 
-  const getUserRole = (user: any) => {
-    return user?.groups?.[0] || 'user'
+  const getUserRole = (user: Record<string, unknown>) => {
+    return (user?.groups as string[])?.[0] || 'user'
   }
 
-  const getUserDisplayName = (user: any) => {
-    return user?.name || user?.given_name || user?.email?.split('@')[0] || 'User'
+  const getUserDisplayName = (user: Record<string, unknown>) => {
+    return (user?.name as string) || (user?.given_name as string) || (user?.email as string)?.split('@')[0] || 'User'
   }
 
   return (

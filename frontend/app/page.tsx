@@ -45,7 +45,7 @@ export default function LandingPage() {
       {/* Left Text */}
       <div className="lg:w-1/2 space-y-8 animate-fadeInUp">
         <h1 className="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight text-gray-900">
-          Book Sri Lanka’s
+          Book Sri Lanka&apos;s
           <br />
           <span className="bg-gradient-to-r from-[var(--primary-red)] to-[#ff6a6a] bg-clip-text text-transparent">
             Premier Artists
@@ -229,7 +229,7 @@ export default function LandingPage() {
                 <span className="text-[var(--primary-red)]">Clients Say</span>
               </h2>
               <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-                Hear from people who've booked through ArtistLK
+                Hear from people who&apos;ve booked through ArtistLK
               </p>
             </div>
 
@@ -264,7 +264,7 @@ export default function LandingPage() {
                     ))}
                   </div>
                   <p className="text-gray-700 italic mb-6">
-                    "{testimonial.quote}"
+                    &#34;{testimonial.quote}&#34;
                   </p>
                   <div>
                     <p className="font-semibold text-gray-900">
@@ -288,7 +288,7 @@ export default function LandingPage() {
                 Ready to Get <span className="text-yellow-200">Started?</span>
               </h2>
               <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Join thousands of satisfied clients and artists on Sri Lanka's
+                Join thousands of satisfied clients and artists on Sri Lanka&apos;s
                 premier booking platform
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -322,7 +322,7 @@ export default function LandingPage() {
                   <span className="text-xl font-bold text-white">ArtistLK</span>
                 </div>
                 <p className="text-gray-400">
-                  Sri Lanka's premier platform for booking talented artists and
+                  Sri Lanka&apos;s premier platform for booking talented artists and
                   performers.
                 </p>
               </div>

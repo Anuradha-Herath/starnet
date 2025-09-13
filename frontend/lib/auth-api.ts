@@ -92,13 +92,12 @@ class AuthAPI {
         const errorMessage = data.message || `HTTP error! status: ${response.status}`
         const error = new Error(errorMessage)
         // Add status code to error for better handling
-        ;(error as any).status = response.status
+        ;(error as Error & { status: number }).status = response.status
         throw error
       }
 
       return data
     } catch (error) {
-      console.error('[AuthAPI] Request failed:', error)
       throw error
     }
   }
