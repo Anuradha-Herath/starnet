@@ -321,9 +321,12 @@ function AdminPerformersContent() {
                             variant="outline"
                             size="sm"
                             className="glass-card border-white/20 text-gray hover:bg-white/10 bg-transparent"
+                            asChild
                           >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Profile
+                            <Link href={`/admin/performers/${performer.id}`}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Profile
+                            </Link>
                           </Button>
                           {performer.status === "pending" && (
                             <>
