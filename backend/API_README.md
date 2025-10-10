@@ -17,7 +17,7 @@ JWT_SECRET=your-jwt-secret-key
 PORT=8080
 ```
 
-3. Set up the database by running the SQL script in `database_setup.sql` in your Supabase SQL editor.
+3. Set up the database by running the SQL script in `migrations/001_initial_setup.sql` in your Supabase SQL editor.
 
 4. Start the development server:
 ```bash
@@ -83,4 +83,4 @@ The application uses two tables:
 1. `users` - User profile information
 2. `user_auth` - Password hashes and authentication data
 
-Run the `database_setup.sql` script to create the required tables.
+Run the `migrations/001_initial_setup.sql` script to create the required tables.

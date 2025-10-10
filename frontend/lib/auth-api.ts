@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8081/api'
 
 export interface User {
   id: string
@@ -89,7 +89,23 @@ class AuthAPI {
       console.log('- Response data:', data)
 
       if (!response.ok) {
-        const errorMessage = data.message || `HTTP error! status: ${response.status}`
+        // Handle different error response formats
+        let errorMessage = `HTTP error! status: ${response.status}`
+        
+        if (data) {
+          if (typeof data.message === 'string') {
+            errorMessage = data.message
+          } else if (Array.isArray(data.message)) {
+            // Handle validation errors (array of strings)
+            errorMessage = data.message.join(', ')
+          } else if (typeof data.message === 'object') {
+            // Handle object errors
+            errorMessage = JSON.stringify(data.message)
+          } else if (data.error) {
+            errorMessage = typeof data.error === 'string' ? data.error : JSON.stringify(data.error)
+          }
+        }
+        
         const error = new Error(errorMessage)
         // Add status code to error for better handling
         ;(error as Error & { status: number }).status = response.status
@@ -131,10 +147,18 @@ class AuthAPI {
   }
 
   public async logout(): Promise<void> {
-    // Clean up local storage (no backend call needed for JWT)
-    this.removeToken()
-    this.removeRefreshToken()
-    this.removeCachedUser()
+    try {
+      // Call backend to invalidate refresh token
+      await this.request('/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.warn('[AuthAPI] Backend logout failed:', error);
+      // Continue with local cleanup even if backend call fails
+    }
+
+    // Clean up local storage
+    this.removeToken();
+    this.removeRefreshToken();
+    this.removeCachedUser();
   }
 
   public getToken(): string | null {
@@ -194,7 +218,7 @@ class AuthAPI {
     if (!refreshToken) return null
 
     try {
-      const response = await this.request<{ token: string }>('/auth/refresh', {
+      const response = await this.request<{ token: string; refreshToken: string }>('/auth/refresh', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${refreshToken}`
@@ -202,6 +226,7 @@ class AuthAPI {
       })
 
       this.setToken(response.token)
+      this.setRefreshToken(response.refreshToken)
       return response.token
     } catch (error) {
       // Refresh token is invalid, clear everything

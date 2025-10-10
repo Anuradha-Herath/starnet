@@ -9,6 +9,7 @@ import {
 import { AuthService } from './auth.service';
 import { SignupDto, LoginDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RefreshTokenGuard } from './refresh-token.guard';
 import { User } from './user.interface';
 
 @Controller('auth')
@@ -31,9 +32,15 @@ export class AuthController {
     return this.authService.getCurrentUser(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(RefreshTokenGuard)
   @Post('refresh')
-  refreshToken(@Request() req: { user: User }) {
+  async refreshToken(@Request() req: { user: User }) {
     return this.authService.refreshToken(req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Request() req: { user: User }) {
+    return this.authService.logout(req.user);
   }
 }
