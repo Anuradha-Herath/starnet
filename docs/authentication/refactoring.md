@@ -213,7 +213,7 @@ After this refactoring, test the following:
 ## Questions?
 
 Check the comprehensive documentation at:
-- **`frontend/lib/auth/README.md`** - Complete authentication guide
+- **`docs/authentication/`** - Complete authentication guides
 - Console logs - Detailed operation logging
 - This document - Refactoring summary
 

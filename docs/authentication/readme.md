@@ -102,25 +102,24 @@ frontend/
 
 I've created three comprehensive documentation files:
 
-1. **`frontend/lib/auth/README.md`**
-   - Complete authentication guide
-   - API reference
-   - Usage examples
-   - Troubleshooting tips
-   - Security best practices
-
-2. **`AUTHENTICATION_REFACTORING.md`**
-   - What was changed
-   - Why it was changed
-   - Migration guide
-   - Testing checklist
-
-3. **`AUTHENTICATION_ARCHITECTURE.md`**
+1. **`docs/authentication/architecture.md`**
    - System architecture diagrams
    - Authentication flows
    - Security features
    - Error handling
    - Role-based access control
+
+2. **`docs/authentication/refactoring.md`**
+   - What was changed
+   - Why it was changed
+   - Migration guide
+   - Testing checklist
+
+3. **`docs/authentication/quick-reference.md`**
+   - Quick usage examples
+   - Common patterns
+   - API reference
+   - Troubleshooting tips
 
 ## Quick Start
 
@@ -201,16 +200,15 @@ After this refactoring, please test:
 ## What's Next?
 
 1. **Test everything** - Run through the auth flow to make sure it works
-2. **Read the docs** - Check out `frontend/lib/auth/README.md`
+2. **Read the docs** - Check out `docs/authentication/`
 3. **Enjoy cleaner code!** - Much easier to work with now
 
 ## Support
 
 If you have questions:
-1. Check `frontend/lib/auth/README.md` - comprehensive guide
+1. Check `docs/authentication/` - comprehensive guides
 2. Check console logs - detailed operation logging with `[AuthContext]` and `[AuthAPI]` prefixes
-3. Review `AUTHENTICATION_ARCHITECTURE.md` - system diagrams
-4. Check `AUTHENTICATION_REFACTORING.md` - what changed
+3. Review architecture diagrams in `docs/authentication/architecture.md`
 
 ## Backend Status
 

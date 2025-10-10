@@ -3,20 +3,20 @@
 ## Import Everything From One Place
 
 ```typescript
-import { 
+import {
   // Hooks
-  useAuth, 
+  useAuth,
   AuthProvider,
-  
+
   // API Client
   authAPI,
-  
+
   // Token Management
   tokenStorage,
   isAuthenticated,
   isTokenExpired,
   decodeToken,
-  
+
   // Types
   User,
   AuthResponse,
@@ -33,10 +33,10 @@ import {
 ```typescript
 function MyComponent() {
   const { user, isLoading, isAuthenticated, login, logout } = useAuth()
-  
+
   if (isLoading) return <div>Loading...</div>
   if (!isAuthenticated) return <div>Please login</div>
-  
+
   return <div>Welcome {user.firstName}!</div>
 }
 ```
@@ -62,11 +62,11 @@ function ProtectedPage() {
 ```typescript
 function AdminOnly() {
   const { user } = useAuth()
-  
+
   if (user?.role !== 'admin') {
     return <div>Access Denied</div>
   }
-  
+
   return <div>Admin Dashboard</div>
 }
 ```
@@ -251,12 +251,9 @@ Authentication files:
   frontend/contexts/          - React context
   frontend/app/login/         - Login page
   frontend/app/signup/        - Signup page
-  
+
 Documentation:
-  frontend/lib/auth/README.md        - Detailed guide
-  AUTHENTICATION_REFACTORING.md      - What changed
-  AUTHENTICATION_ARCHITECTURE.md     - System design
-  README_AUTHENTICATION.md           - Quick summary
+  docs/authentication/        - All auth docs
 ```
 
 ## Testing Checklist
