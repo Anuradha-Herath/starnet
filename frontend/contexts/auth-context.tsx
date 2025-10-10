@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { authAPI } from '@/lib/auth/api-client'
@@ -101,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     setUser(null)
+    tokenStorage.clearAll()
   }
 
   const value: AuthContextType = {

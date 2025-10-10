@@ -144,7 +144,12 @@ export function Navigation() {
                           </Link>
                           <hr className="my-2 border-gray-300/50" />
                           <button
-                            onClick={logout}
+                            onClick={async () => {
+                              await logout();
+                              setUserMenuOpen(false);
+                              // Redirect to home page after logout
+                              window.location.href = '/';
+                            }}
                             className="flex items-center gap-2 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50/50 rounded-lg transition-all w-full text-left"
                           >
                             <LogOut className="w-4 h-4" />
@@ -160,15 +165,15 @@ export function Navigation() {
               /* Authentication Links */
               <div className="flex items-center space-x-4">
                 <Link
-                  href="/login"
+                  href="/auth/login"
                   className={`text-gray-800 hover:text-red-600 transition-colors font-medium ${
-                    isLinkActive("/login") ? "text-red-600 underline underline-offset-8 decoration-2" : ""
+                    isLinkActive("/auth/login") ? "text-red-600 underline underline-offset-8 decoration-2" : ""
                   }`}
                 >
                   Sign In
                 </Link>
                 <Link
-                  href="/signup"
+                  href="/auth/signup"
                   className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all font-medium shadow-lg"
                 >
                   Sign Up
@@ -221,9 +226,11 @@ export function Navigation() {
                   ))}
                   <hr className="my-2 border-gray-300/50" />
                   <button
-                    onClick={() => {
-                      logout();
+                    onClick={async () => {
+                      await logout();
                       setIsOpen(false);
+                      // Redirect to home page after logout
+                      window.location.href = '/';
                     }}
                     className="block w-full text-left px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50/50 rounded-lg transition-all"
                   >
@@ -233,16 +240,16 @@ export function Navigation() {
               ) : (
                 <>
                   <Link
-                    href="/login"
+                    href="/auth/login"
                     className={`block px-4 py-2 hover:text-red-600 hover:bg-red-50/50 rounded-lg transition-all ${
-                      isLinkActive("/login") ? "text-red-600 underline underline-offset-4 decoration-2" : "text-gray-800"
+                      isLinkActive("/auth/login") ? "text-red-600 underline underline-offset-4 decoration-2" : "text-gray-800"
                     }`}
                     onClick={() => setIsOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link
-                    href="/signup"
+                    href="/auth/signup"
                     className="block px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all font-medium"
                     onClick={() => setIsOpen(false)}
                   >

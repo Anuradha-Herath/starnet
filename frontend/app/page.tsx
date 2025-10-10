@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Navigation } from "@/components/navigation";
-import { RedirectGuard } from "@/components/redirect-guard";
+import { RedirectGuard } from "@/components/auth/RedirectGuard";
 import Image from "next/image";
 
 export default function LandingPage() {
@@ -63,7 +63,7 @@ export default function LandingPage() {
               🎤 Browse Artists
             </Button>
           </Link>
-          <Link href="/signup?role=performer">
+          <Link href="/auth/signup?role=performer">
             <Button
               variant="outline"
               className="text-lg px-8 py-4 rounded-full border-[var(--primary-red)] text-[var(--primary-red)] hover:bg-[rgba(var(--primary-red),0.1)] hover:text-[var(--primary-red-dark)] transition-all duration-300"
@@ -292,12 +292,12 @@ export default function LandingPage() {
                 premier booking platform
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/signup?role=client">
+                <Link href="/auth/signup?role=client">
                   <Button className="text-lg px-8 py-4 bg-white text-[var(--primary-red)] hover:bg-white/90 shadow-lg">
                     Book an Artist
                   </Button>
                 </Link>
-                <Link href="/signup?role=performer">
+                <Link href="/auth/signup?role=performer">
                   <Button
                     variant="outline"
                     className="text-lg px-8 py-4 border-white text-white hover:bg-white/10 hover:text-white"
@@ -362,7 +362,7 @@ export default function LandingPage() {
                 <ul className="space-y-2 text-gray-400">
                   <li>
                     <Link
-                      href="/signup?role=performer"
+                      href="/auth/signup?role=performer"
                       className="hover:text-white transition-colors"
                     >
                       Join Platform

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { AuthGuard } from "@/components/auth-guard"
+import { AuthGuard } from "@/components/auth/AuthGuard"
 import { Navigation } from "@/components/navigation"
 import { Music, Bell, User, Check, CreditCard, Star, AlertCircle, Info, CheckCircle } from "lucide-react"
 import Link from "next/link"

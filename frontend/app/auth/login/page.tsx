@@ -11,7 +11,7 @@ import { Music, Eye, EyeOff, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { RedirectGuard } from "@/components/redirect-guard"
+import { RedirectGuard } from "@/components/auth/RedirectGuard"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -191,7 +191,7 @@ export default function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-gray-600">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="text-primary hover:text-primary/80 font-medium smooth-transition">
+              <Link href="/auth/signup" className="text-primary hover:text-primary/80 font-medium smooth-transition">
                 Sign up here
               </Link>
             </p>

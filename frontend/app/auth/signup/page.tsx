@@ -11,7 +11,7 @@ import { Music, Eye, EyeOff, ArrowLeft, User, Mic } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { RedirectGuard } from "@/components/redirect-guard"
+import { RedirectGuard } from "@/components/auth/RedirectGuard"
 
 type UserRole = "client" | "performer"
 
@@ -92,7 +92,7 @@ export default function SignupPage() {
       
       // Redirect to login page after 2 seconds
       setTimeout(() => {
-        router.push("/login")
+        router.push("/auth/login")
       }, 2000)
 
     } catch (err) {
@@ -149,7 +149,7 @@ export default function SignupPage() {
           <div className="text-center mt-8">
             <p className="text-gray-600">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:text-primary/80 font-medium smooth-transition">
+              <Link href="/auth/login" className="text-primary hover:text-primary/80 font-medium smooth-transition">
                 Sign in here
               </Link>
             </p>
@@ -327,7 +327,7 @@ export default function SignupPage() {
           <div className="mt-8 text-center">
             <p className="text-gray-600">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:text-primary/80 font-medium smooth-transition">
+              <Link href="/auth/login" className="text-primary hover:text-primary/80 font-medium smooth-transition">
                 Sign in here
               </Link>
             </p>

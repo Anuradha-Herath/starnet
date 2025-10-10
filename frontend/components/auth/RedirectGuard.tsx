@@ -29,6 +29,13 @@ export function RedirectGuard({
       return
     }
 
+    // If allowedRoles is specified and user is not authenticated, redirect to login
+    if (allowedRoles.length > 0 && !isAuthenticated) {
+      console.log('[RedirectGuard] User not authenticated, redirecting to login')
+      router.replace('/auth/login')
+      return
+    }
+
     // If allowedRoles is specified and user doesn't have the right role
     if (allowedRoles.length > 0 && isAuthenticated && user) {
       if (!allowedRoles.includes(user.role)) {
@@ -67,6 +74,15 @@ export function RedirectGuard({
     )
   }
 
+  // If allowedRoles is specified and user is not authenticated, don't render children
+  if (allowedRoles.length > 0 && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
   return <>{children}</>
 }
 
@@ -79,6 +95,6 @@ function getDashboardPath(role: string): string {
     case "admin":
       return "/admin/dashboard"
     default:
-      return "/login"
+      return "/auth/login"
   }
 }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { AuthGuard } from "@/components/auth-guard"
+import { AuthGuard } from "@/components/auth/AuthGuard"
 import { Navigation } from "@/components/navigation"
 import {
   Shield,

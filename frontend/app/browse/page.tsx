@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Music, Search, Star, MapPin, Filter, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
-import { RedirectGuard } from "@/components/redirect-guard"
+import { RedirectGuard } from "@/components/auth/RedirectGuard"
 
 export default function BrowseArtistsPage() {
   return (
@@ -119,12 +119,12 @@ function BrowseArtistsContent() {
             </Link>
 
             <div className="flex items-center space-x-4">
-              <Link href="/login">
+              <Link href="/auth/login">
                 <Button variant="ghost" className="text-gray-700 hover:bg-gray-100">
                   Sign In
                 </Button>
               </Link>
-              <Link href="/signup">
+              <Link href="/auth/signup">
                 <Button className="glow-button">Get Started</Button>
               </Link>
             </div>

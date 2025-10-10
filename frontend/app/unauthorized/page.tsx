@@ -22,7 +22,7 @@ export default function UnauthorizedPage() {
             </Button>
           </Link>
           
-          <Link href="/login">
+          <Link href="/auth/login">
             <Button variant="outline" className="w-full">
               Sign In with Different Account
             </Button>
