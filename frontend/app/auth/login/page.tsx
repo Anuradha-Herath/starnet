@@ -71,7 +71,8 @@ export default function LoginPage() {
       await login(formData.email, formData.password)
       setShouldRedirect(true) // Only set redirect flag after successful login
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid email or password. Please try again.")
+      console.error('Login error:', err)
+      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }

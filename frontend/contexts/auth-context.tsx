@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { authAPI } from '@/lib/auth/api-client'
+import { authAPI, APIError } from '@/lib/auth/api-client'
 import { tokenStorage, isTokenExpired } from '@/lib/auth/token-manager'
 import type { User, AuthContextType, SignupData } from '@/lib/auth/types'
 
@@ -72,8 +72,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[AuthContext] Login successful:', response.user.email)
       setUser(response.user)
       tokenStorage.setCachedUser(response.user)
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AuthContext] Login failed:', error)
+      
+      // Transform API errors to user-friendly messages
+      if (error instanceof APIError) {
+        if (error.isNetworkError) {
+          throw new Error('Unable to connect. Please check your internet connection and try again.')
+        }
+        if (error.isServerError) {
+          throw new Error('Server error. Please try again later.')
+        }
+        // For auth errors, use the user-friendly message
+        throw new Error(error.userMessage)
+      }
+      
       throw error
     }
   }
@@ -85,8 +98,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       tokenStorage.clearAll()
       setUser(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AuthContext] Signup failed:', error)
+      
+      // Transform API errors
+      if (error instanceof APIError) {
+        if (error.isNetworkError) {
+          throw new Error('Unable to connect. Please check your internet connection and try again.')
+        }
+        if (error.isServerError) {
+          throw new Error('Server error. Please try again later.')
+        }
+        // Use user-friendly message for validation/conflict errors
+        throw new Error(error.userMessage)
+      }
+      
       throw error
     }
   }

@@ -17,10 +17,64 @@ export class APIError extends Error {
   constructor(
     message: string,
     public status: number,
-    public code?: string
+    public code?: string,
+    public details?: any,
   ) {
     super(message)
     this.name = 'APIError'
+  }
+
+  /**
+   * Check if error is due to network issues
+   */
+  get isNetworkError(): boolean {
+    return this.status === 0 || this.code === 'NETWORK_ERROR'
+  }
+
+  /**
+   * Check if error is due to authentication issues
+   */
+  get isAuthError(): boolean {
+    return this.status === 401 || this.code === 'TOKEN_EXPIRED'
+  }
+
+  /**
+   * Check if error is due to server issues
+   */
+  get isServerError(): boolean {
+    return this.status >= 500
+  }
+
+  /**
+   * Check if error is retryable
+   */
+  get isRetryable(): boolean {
+    return this.isNetworkError || this.isServerError || this.status === 429
+  }
+
+  /**
+   * Get user-friendly error message
+   */
+  get userMessage(): string {
+    if (this.isNetworkError) {
+      return 'Network connection error. Please check your internet connection and try again.'
+    }
+    if (this.isAuthError) {
+      return 'Your session has expired. Please log in again.'
+    }
+    if (this.status === 429) {
+      return 'Too many requests. Please wait a moment and try again.'
+    }
+    if (this.status >= 500) {
+      return 'Server error. Please try again later.'
+    }
+    if (this.status === 400) {
+      return this.message // Validation errors
+    }
+    if (this.status === 409) {
+      return this.message // Conflict errors
+    }
+    return this.message || 'An unexpected error occurred. Please try again.'
   }
 }
 
@@ -42,10 +96,16 @@ class AuthAPIClient {
   }
 
   /**
-   * Make an authenticated HTTP request
+   * Make an authenticated HTTP request with retry logic
    */
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    endpoint: string, 
+    options: RequestInit = {},
+    retryCount = 0
+  ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`
+    const maxRetries = 3
+    const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000) // Exponential backoff, max 10s
     
     const config: RequestInit = {
       headers: {
@@ -80,14 +140,28 @@ class AuthAPIClient {
 
     try {
       const response = await fetch(url, config)
-      const data = await response.json()
+      const data = await response.json().catch(() => ({})) // Handle non-JSON responses
 
       if (!response.ok) {
-        throw new APIError(
-          data.message || `HTTP ${response.status}: ${response.statusText}`,
+        const errorMessage = typeof data === 'object' && data.message 
+          ? data.message 
+          : `HTTP ${response.status}: ${response.statusText}`
+        
+        const apiError = new APIError(
+          errorMessage,
           response.status,
-          data.code
+          data.code || data.errorCode,
+          data.details || data
         )
+
+        // Retry logic for retryable errors
+        if (apiError.isRetryable && retryCount < maxRetries) {
+          console.warn(`[AuthAPI] Request failed, retrying in ${retryDelay}ms... (${retryCount + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          return this.request<T>(endpoint, options, retryCount + 1)
+        }
+
+        throw apiError
       }
 
       return data as T
@@ -98,11 +172,20 @@ class AuthAPIClient {
       
       // Network or parsing errors
       console.error('[AuthAPI] Request failed:', error)
-      throw new APIError(
+      const networkError = new APIError(
         'Network error. Please check your connection.',
         0,
         'NETWORK_ERROR'
       )
+
+      // Retry network errors
+      if (networkError.isRetryable && retryCount < maxRetries) {
+        console.warn(`[AuthAPI] Network error, retrying in ${retryDelay}ms... (${retryCount + 1}/${maxRetries})`)
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
+        return this.request<T>(endpoint, options, retryCount + 1)
+      }
+
+      throw networkError
     }
   }
 

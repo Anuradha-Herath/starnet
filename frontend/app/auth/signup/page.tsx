@@ -96,6 +96,7 @@ export default function SignupPage() {
       }, 2000)
 
     } catch (err) {
+      console.error('Signup error:', err)
       setError(err instanceof Error ? err.message : "Failed to create account. Please try again.")
     } finally {
       setIsLoading(false)
