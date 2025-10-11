@@ -10,7 +10,6 @@ describe('Authentication (e2e)', () => {
   let app: INestApplication;
 
   beforeEach(async () => {
-    process.env.JWT_SECRET = 'test-secret-key';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
