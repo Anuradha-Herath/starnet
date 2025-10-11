@@ -1,98 +1,211 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Starnet Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS backend for the Starnet artist booking platform, providing authentication, user management, and API services.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🏗️ Architecture
 
-## Description
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL (hosted on Supabase)
+- **Authentication**: JWT with refresh tokens
+- **ORM**: Supabase client for database operations
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 📦 Tech Stack
 
-## Project setup
+- **Runtime**: Node.js
+- **Framework**: NestJS
+- **Language**: TypeScript
+- **Database**: PostgreSQL via Supabase
+- **Authentication**: JWT (jsonwebtoken)
+- **Password Hashing**: bcrypt
+- **Validation**: class-validator
 
-```bash
-$ npm install
-```
+## 🚀 Getting Started
 
-## Compile and run the project
+### Prerequisites
 
-```bash
-# development
-$ npm run start
+- Node.js (v18 or higher)
+- npm or yarn
+- Supabase account and database
 
-# watch mode
-$ npm run start:dev
+### Installation
 
-# production mode
-$ npm run start:prod
-```
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-## Run tests
+2. **Environment Setup:**
+   Create a `.env` file in the backend directory:
+   ```env
+   SUPABASE_URL=your-supabase-project-url
+   SUPABASE_ANON_KEY=your-supabase-anon-key
+   JWT_SECRET=your-super-secret-jwt-key-32-chars-min
+   PORT=8081
+   ```
 
-```bash
-# unit tests
-$ npm run test
+3. **Database Setup:**
+   Run the initial migration script in your Supabase SQL editor:
+   ```sql
+   -- Execute: backend/migrations/001_initial_setup.sql
+   ```
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Running the Application
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Development mode (with hot reload)
+npm run start:dev
+
+# Production build
+npm run build
+npm run start:prod
+
+# Docker
+docker build -t starnet-backend .
+docker run -p 8081:8081 starnet-backend
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The backend will start on `http://localhost:8081`
 
-## Resources
+## 📋 API Endpoints
 
-Check out a few resources that may come in handy when working with NestJS:
+### Authentication
+- `POST /api/auth/signup` - User registration
+- `POST /api/auth/login` - User authentication
+- `GET /api/auth/me` - Get current user profile (JWT required)
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Logout user
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Health Check
+- `GET /api/health` - Application health status
 
-## Support
+## 🗄️ Database Schema
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Tables
 
-## Stay in touch
+#### `users`
+```sql
+CREATE TABLE users (
+    id VARCHAR(255) PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('client', 'performer', 'admin')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+#### `user_auth`
+```sql
+CREATE TABLE user_auth (
+    user_id VARCHAR(255) PRIMARY KEY REFERENCES users(id),
+    password_hash VARCHAR(255) NOT NULL,
+    refresh_token TEXT,
+    refresh_token_expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-## License
+## 🔧 Development
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Project Structure
+```
+backend/
+├── src/
+│   ├── app.controller.ts      # Health check endpoint
+│   ├── app.module.ts          # Root application module
+│   ├── app.service.ts         # Application service
+│   ├── auth/                  # Authentication module
+│   │   ├── auth.controller.ts # Auth API endpoints
+│   │   ├── auth.service.ts    # Auth business logic
+│   │   ├── auth.module.ts     # Auth module definition
+│   │   ├── jwt.strategy.ts    # JWT validation strategy
+│   │   ├── jwt-auth.guard.ts  # JWT route protection
+│   │   ├── refresh-token.strategy.ts
+│   │   ├── refresh-token.guard.ts
+│   │   └── dto/               # Request/Response DTOs
+│   ├── common/                # Shared utilities
+│   ├── shared/                # Shared services (Supabase)
+│   └── main.ts                # Application entry point
+├── migrations/                # Database migration scripts
+├── test/                      # Test files
+├── Dockerfile                 # Docker configuration
+└── package.json               # Dependencies and scripts
+```
+
+### Available Scripts
+
+```bash
+npm run start          # Start production server
+npm run start:dev      # Start development server with hot reload
+npm run build          # Build for production
+npm run test           # Run unit tests
+npm run test:e2e       # Run end-to-end tests
+npm run test:cov       # Run tests with coverage
+```
+
+## 🔐 Security Features
+
+- **JWT Authentication**: Stateless authentication with access and refresh tokens
+- **Password Security**: bcrypt hashing with salt rounds
+- **Token Expiration**: Access tokens (1 hour), Refresh tokens (7 days)
+- **Input Validation**: class-validator for request validation
+- **CORS**: Configured for frontend communication
+- **Rate Limiting**: Built-in NestJS rate limiting
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm run test
+
+# Run e2e tests
+npm run test:e2e
+
+# Run with coverage
+npm run test:cov
+```
+
+## 📚 Documentation
+
+- **[API Documentation](../docs/api/backend.md)** - Complete API reference
+- **[Authentication Guide](../docs/authentication/)** - Auth system documentation
+- **[Troubleshooting](../docs/troubleshooting/)** - Common issues and fixes
+
+## 🚀 Deployment
+
+### Environment Variables for Production
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-production-anon-key
+JWT_SECRET=your-production-jwt-secret-min-32-chars
+PORT=8081
+NODE_ENV=production
+```
+
+### Docker Deployment
+```bash
+# Build and run with Docker
+docker build -t starnet-backend .
+docker run -p 8081:8081 --env-file .env starnet-backend
+```
+
+## 🤝 Contributing
+
+1. Follow the existing code style and structure
+2. Add tests for new features
+3. Update documentation as needed
+4. Ensure all tests pass before submitting PR
+
+## 📞 Support
+
+For issues and questions:
+- Check the [troubleshooting guide](../docs/troubleshooting/)
+- Review the [authentication docs](../docs/authentication/)
+- Create an issue in the repository
+
+## 📝 License
+
+This project is licensed under the MIT License.

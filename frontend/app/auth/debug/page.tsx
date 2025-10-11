@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { authAPI } from "@/lib/auth-api"
+import { useAuth, authAPI, tokenStorage, decodeToken } from "@/lib/auth"
 
 export default function AuthDebugPage() {
   const { user, isLoading, hasValidToken } = useAuth()
@@ -11,19 +10,12 @@ export default function AuthDebugPage() {
 
   useEffect(() => {
     const gatherDebugInfo = () => {
-      const token = authAPI.getToken()
+      const token = tokenStorage.getToken()
       const localStorageToken = typeof window !== 'undefined' ? localStorage.getItem('artistlk_token') : null
       
       let decodedToken = null
       if (token) {
-        try {
-          const parts = token.split('.')
-          if (parts.length === 3) {
-            decodedToken = JSON.parse(atob(parts[1]))
-          }
-        } catch {
-          decodedToken = { error: 'Failed to decode token' }
-        }
+        decodedToken = decodeToken(token)
       }
 
       setDebugInfo({
@@ -47,7 +39,7 @@ export default function AuthDebugPage() {
       setTestResults({ testing: true })
       console.log('Testing token validation...')
       
-      const token = authAPI.getToken()
+      const token = tokenStorage.getToken()
       console.log('Current token:', token)
       
       if (!token) {
@@ -125,7 +117,7 @@ export default function AuthDebugPage() {
             </button>
             
             <a 
-              href="/login" 
+              href="/auth/login" 
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 inline-block"
             >
               Go to Login

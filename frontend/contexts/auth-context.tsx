@@ -1,59 +1,37 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { authAPI, type User } from '@/lib/auth-api'
-
-interface AuthContextType {
-  user: User | null
-  isLoading: boolean
-  isAuthenticated: boolean
-  hasValidToken: boolean // New flag to indicate if there's a token in storage
-  login: (email: string, password: string) => Promise<void>
-  signup: (userData: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    password: string
-    role: 'client' | 'performer'
-  }) => Promise<void>
-  logout: () => void
-}
+import { authAPI } from '@/lib/auth/api-client'
+import { tokenStorage, isTokenExpired } from '@/lib/auth/token-manager'
+import type { User, AuthContextType, SignupData } from '@/lib/auth/types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Clean initial state - let useEffect handle token recovery
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('[AuthContext] Starting auth initialization')
+      console.log('[AuthContext] Initializing authentication...')
       
-      const token = authAPI.getToken()
-      const cachedUser = authAPI.getCachedUser()
-      
-      console.log('[AuthContext] TOKEN STATE CHECK:')
-      console.log('- JWT Token exists:', !!token)
-      console.log('- Cached user exists:', !!cachedUser)
-      console.log('- Cached user email:', cachedUser?.email || 'none')
+      const token = tokenStorage.getToken()
+      const cachedUser = tokenStorage.getCachedUser()
       
       if (!token) {
-        console.log('[AuthContext] No token found, clearing auth state')
-        authAPI.removeCachedUser()
+        console.log('[AuthContext] No token found')
+        tokenStorage.clearAll()
         setUser(null)
         setIsLoading(false)
         return
       }
 
-      // Check if token is expired
-      if (authAPI.isTokenExpired()) {
-        console.log('[AuthContext] Token is expired, attempting refresh...')
+      if (isTokenExpired(token)) {
+        console.log('[AuthContext] Token expired, attempting refresh...')
         const newToken = await authAPI.refreshAccessToken()
         
         if (!newToken) {
-          console.log('[AuthContext] Token refresh failed, clearing auth state')
+          console.log('[AuthContext] Token refresh failed')
           setUser(null)
           setIsLoading(false)
           return
@@ -62,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[AuthContext] Token refreshed successfully')
       }
 
-      // If we have a cached user and valid token, use it
       if (cachedUser) {
         console.log('[AuthContext] Using cached user data')
         setUser(cachedUser)
@@ -70,18 +47,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       
-      // Validate token by fetching current user
       try {
-        console.log('[AuthContext] Fetching current user from server...')
+        console.log('[AuthContext] Validating session...')
         const currentUser = await authAPI.getCurrentUser()
-        console.log('[AuthContext] User verified successfully:', currentUser.email)
+        console.log('[AuthContext] Session valid:', currentUser.email)
         setUser(currentUser)
-        authAPI.setCachedUser(currentUser)
+        tokenStorage.setCachedUser(currentUser)
       } catch (error: any) {
-        console.error('[AuthContext] Token validation failed:', error)
-        authAPI.removeToken()
-        authAPI.removeRefreshToken()
-        authAPI.removeCachedUser()
+        console.error('[AuthContext] Session validation failed:', error)
+        tokenStorage.clearAll()
         setUser(null)
       }
       
@@ -92,49 +66,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    const response = await authAPI.login({ email, password })
-    const newToken = authAPI.getToken()
-    
-    console.log('[AuthContext] LOGIN SUCCESS:')
-    console.log('- JWT Token after login:', newToken ? `${newToken.substring(0, 50)}...` : 'null')
-    console.log('- Token length:', newToken ? newToken.length : 0)
-    console.log('- User data:', response.user.email)
-    
-    setUser(response.user)
-    authAPI.setCachedUser(response.user)
+    try {
+      const response = await authAPI.login({ email, password })
+      
+      console.log('[AuthContext] Login successful:', response.user.email)
+      setUser(response.user)
+      tokenStorage.setCachedUser(response.user)
+    } catch (error) {
+      console.error('[AuthContext] Login failed:', error)
+      throw error
+    }
   }
 
-  const signup = async (userData: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    password: string
-    role: 'client' | 'performer'
-  }) => {
-    const response = await authAPI.signup(userData)
-    // We intentionally do NOT log the user in after signup
-    authAPI.removeToken()
-    authAPI.removeRefreshToken()
-    authAPI.removeCachedUser()
-    setUser(null)
+  const signup = async (userData: SignupData) => {
+    try {
+      await authAPI.signup(userData)
+      console.log('[AuthContext] Signup successful')
+      
+      tokenStorage.clearAll()
+      setUser(null)
+    } catch (error) {
+      console.error('[AuthContext] Signup failed:', error)
+      throw error
+    }
   }
 
   const logout = async () => {
-    console.log('[AuthContext] Logging out user, clearing all auth state')
+    console.log('[AuthContext] Logging out...')
+    
     try {
       await authAPI.logout()
     } catch (error) {
-      console.warn('[AuthContext] Logout failed:', error)
+      console.warn('[AuthContext] Logout request failed:', error)
     }
+    
     setUser(null)
+    tokenStorage.clearAll()
   }
 
-  const value = {
+  const value: AuthContextType = {
     user,
     isLoading,
-  isAuthenticated: !!user,
-  hasValidToken: authAPI.isAuthenticated(),
+    isAuthenticated: !!user,
+    hasValidToken: tokenStorage.getToken() !== null && !isTokenExpired(tokenStorage.getToken()),
     login,
     signup,
     logout,
@@ -143,10 +117,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext)
+  
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
+  
   return context
 }

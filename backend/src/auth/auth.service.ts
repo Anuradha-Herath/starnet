@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { SupabaseService } from '../supabase.service';
+import { SupabaseService } from '../shared/supabase/supabase.service';
 import { SignupDto, LoginDto } from './dto/auth.dto';
 import { User, UserResponse } from './user.interface';
 
@@ -89,7 +89,27 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(
+      { ...payload, type: 'refresh' },
+      { expiresIn: '7d' },
+    );
+
+    // Store refresh token in database
+    const updateResult = await this.supabaseService
+      .getClient()
+      .from('user_auth')
+      .update({
+        refresh_token: refreshToken,
+        refresh_token_expires_at: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(), // 7 days
+      })
+      .eq('user_id', typedNewUser.id);
+
+    if (updateResult.error) {
+      console.error('Failed to store refresh token:', updateResult.error);
+      // Don't throw error, just log it - user is already created
+    }
 
     // Convert to UserResponse format
     const userResponse: UserResponse = {
@@ -162,7 +182,30 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(
+      { ...payload, type: 'refresh' },
+      { expiresIn: '7d' },
+    );
+
+    // Store refresh token in database
+    const updateResult = await this.supabaseService
+      .getClient()
+      .from('user_auth')
+      .update({
+        refresh_token: refreshToken,
+        refresh_token_expires_at: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(), // 7 days
+      })
+      .eq('user_id', typedUser.id);
+
+    if (updateResult.error) {
+      console.error(
+        'Failed to store refresh token during login:',
+        updateResult.error,
+      );
+      // Don't throw error, just log it - allow login to continue
+    }
 
     // Split name into firstName and lastName
     const nameParts = typedUser.name.split(' ');
@@ -205,7 +248,9 @@ export class AuthService {
     };
   }
 
-  refreshToken(user: User): { token: string } {
+  async refreshToken(
+    user: User,
+  ): Promise<{ token: string; refreshToken: string }> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -215,6 +260,44 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload);
-    return { token };
+    const refreshToken = this.jwtService.sign(
+      { ...payload, type: 'refresh' },
+      { expiresIn: '7d' },
+    );
+
+    // Store new refresh token in database
+    const updateResult = await this.supabaseService
+      .getClient()
+      .from('user_auth')
+      .update({
+        refresh_token: refreshToken,
+        refresh_token_expires_at: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(), // 7 days
+      })
+      .eq('user_id', user.id);
+
+    if (updateResult.error) {
+      console.error(
+        'Failed to store refresh token during token refresh:',
+        updateResult.error,
+      );
+    }
+
+    return { token, refreshToken };
+  }
+
+  async logout(user: User): Promise<{ message: string }> {
+    // Clear refresh token from database to prevent further token refresh
+    await this.supabaseService
+      .getClient()
+      .from('user_auth')
+      .update({
+        refresh_token: null,
+        refresh_token_expires_at: null,
+      })
+      .eq('user_id', user.id);
+
+    return { message: 'Logged out successfully' };
   }
 }

@@ -40,17 +40,7 @@ export class LoginDto {
   password: string;
 }
 
-export class AuthResponseDto {
+export class RefreshResponseDto {
   token: string;
   refreshToken: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    role: 'client' | 'performer' | 'admin';
-    createdAt: string;
-    updatedAt: string;
-  };
 }

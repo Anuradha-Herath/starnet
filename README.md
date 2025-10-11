@@ -2,6 +2,14 @@
 
 A full-stack web application for booking artists and performers in Sri Lanka, built with Ballerina backend and Next.js frontend.
 
+## 📚 Documentation
+
+For detailed documentation, see the [docs/](docs/) directory:
+
+- **[Authentication System](docs/authentication/)** - Complete auth documentation including architecture, refactoring details, and usage guides
+- **[API Reference](docs/api/)** - Backend API documentation
+- **[Project Setup](docs/)** - Additional setup and development guides
+
 ## 🏗️ Architecture
 
 - **Backend**: Ballerina 2201.12.7 with PostgreSQL (Supabase)

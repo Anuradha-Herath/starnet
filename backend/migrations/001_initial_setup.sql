@@ -5,6 +5,8 @@ CREATE TABLE user_auth (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   password_hash TEXT NOT NULL,
+  refresh_token TEXT,
+  refresh_token_expires_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

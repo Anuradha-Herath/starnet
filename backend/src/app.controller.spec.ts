@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SupabaseService } from './supabase.service';
+import { SupabaseService } from './shared/supabase/supabase.service';
 
 describe('AppController', () => {
   let appController: AppController;

@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { SupabaseService } from './supabase.service';
+import { SupabaseService } from './shared/supabase/supabase.service';
 
 @Controller()
 export class AppController {
