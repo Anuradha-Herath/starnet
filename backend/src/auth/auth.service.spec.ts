@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
@@ -5,11 +9,12 @@ import { SupabaseService } from '../shared/supabase/supabase.service';
 import { SignupDto, LoginDto } from './dto/auth.dto';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { User } from './user.interface';
+import * as bcrypt from 'bcryptjs';
+
+jest.mock('bcryptjs');
 
 describe('AuthService', () => {
   let service: AuthService;
-  let jwtService: JwtService;
-  let supabaseService: SupabaseService;
 
   const mockJwtService = {
     sign: jest.fn(),
@@ -17,22 +22,24 @@ describe('AuthService', () => {
 
   const mockSupabaseService = {
     getClient: jest.fn().mockReturnValue({
-      from: jest.fn().mockImplementation((table: string) => ({
-        select: jest.fn().mockImplementation((fields?: string) => ({
-          eq: jest.fn().mockImplementation((field: string, value: any) => ({
+      from: jest.fn().mockImplementation((_table: string) => ({
+        select: jest.fn().mockImplementation((_fields?: string) => ({
+          eq: jest.fn().mockImplementation((_field: string, _value: any) => ({
             single: jest.fn().mockResolvedValue({ data: null, error: null }),
           })),
           single: jest.fn().mockResolvedValue({ data: null, error: null }),
         })),
-        insert: jest.fn().mockImplementation((data: any) => ({
+        insert: jest.fn().mockImplementation((_data: any) => ({
           select: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({ data: null, error: null }),
           }),
         })),
-        update: jest.fn().mockImplementation((data: any) => ({
-          eq: jest.fn().mockImplementation((field: string, value: any) => 
-            Promise.resolve({ error: null })
-          ),
+        update: jest.fn().mockImplementation((_data: any) => ({
+          eq: jest
+            .fn()
+            .mockImplementation((_field: string, _value: any) =>
+              Promise.resolve({ error: null }),
+            ),
         })),
       })),
     }),
@@ -48,8 +55,6 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    jwtService = module.get<JwtService>(JwtService);
-    supabaseService = module.get<SupabaseService>(SupabaseService);
   });
 
   afterEach(() => {
@@ -77,21 +82,25 @@ describe('AuthService', () => {
       };
 
       const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'users') {
+      client.from.mockImplementation((_table: string) => {
+        if (_table === 'users') {
           return {
             select: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: null, error: null }),
+                single: jest
+                  .fn()
+                  .mockResolvedValue({ data: null, error: null }),
               }),
             }),
             insert: jest.fn().mockReturnValue({
               select: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: mockUser, error: null }),
+                single: jest
+                  .fn()
+                  .mockResolvedValue({ data: mockUser, error: null }),
               }),
             }),
           };
-        } else if (table === 'user_auth') {
+        } else if (_table === 'user_auth') {
           return {
             insert: jest.fn().mockResolvedValue({ error: null }),
             update: jest.fn().mockReturnValue({
@@ -130,7 +139,10 @@ describe('AuthService', () => {
           return {
             select: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: { id: 'existing-id' }, error: null }),
+                single: jest.fn().mockResolvedValue({
+                  data: { id: 'existing-id' },
+                  error: null,
+                }),
               }),
             }),
           };
@@ -138,7 +150,9 @@ describe('AuthService', () => {
         return {};
       });
 
-      await expect(service.signup(signupDto)).rejects.toThrow(ConflictException);
+      await expect(service.signup(signupDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -168,7 +182,9 @@ describe('AuthService', () => {
           return {
             select: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: mockUser, error: null }),
+                single: jest
+                  .fn()
+                  .mockResolvedValue({ data: mockUser, error: null }),
               }),
             }),
           };
@@ -176,7 +192,9 @@ describe('AuthService', () => {
           return {
             select: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: mockAuthData, error: null }),
+                single: jest
+                  .fn()
+                  .mockResolvedValue({ data: mockAuthData, error: null }),
               }),
             }),
             update: jest.fn().mockReturnValue({
@@ -188,7 +206,7 @@ describe('AuthService', () => {
       });
 
       // Mock bcrypt.compare to return true
-      jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(true);
+      (bcrypt.compare as jest.Mock).mockReturnValue(true);
 
       mockJwtService.sign
         .mockReturnValueOnce('access-token')
@@ -213,7 +231,9 @@ describe('AuthService', () => {
           return {
             select: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({ data: null, error: null }),
+                single: jest
+                  .fn()
+                  .mockResolvedValue({ data: null, error: null }),
               }),
             }),
           };
@@ -221,7 +241,9 @@ describe('AuthService', () => {
         return {};
       });
 
-      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

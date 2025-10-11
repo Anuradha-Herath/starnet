@@ -12,13 +12,21 @@ import { SharedModule } from '../shared/shared.module';
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.NODE_ENV === 'test' ? 'test-secret-key' : process.env.JWT_SECRET || 'your-secret-key',
+      secret:
+        process.env.NODE_ENV === 'test'
+          ? 'test-secret-key'
+          : process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '1h' },
     }),
     SharedModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, RefreshTokenGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    RefreshTokenStrategy,
+    RefreshTokenGuard,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

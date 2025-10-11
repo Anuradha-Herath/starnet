@@ -7,9 +7,10 @@ export class SupabaseService {
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.NODE_ENV === 'test' 
-      ? process.env.SUPABASE_SERVICE_ROLE_KEY 
-      : process.env.SUPABASE_ANON_KEY;
+    const supabaseKey =
+      process.env.NODE_ENV === 'test'
+        ? process.env.SUPABASE_SERVICE_ROLE_KEY
+        : process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase URL and key must be provided');

@@ -13,7 +13,10 @@ interface RefreshTokenPayload {
 }
 
 @Injectable()
-export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'refresh-jwt') {
+export class RefreshTokenStrategy extends PassportStrategy(
+  Strategy,
+  'refresh-jwt',
+) {
   constructor(private supabaseService: SupabaseService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -42,7 +45,7 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'refresh-jw
 
     // Check if token is expired in database
     const now = new Date();
-    const expiresAt = new Date(data.refresh_token_expires_at);
+    const expiresAt = new Date(data.refresh_token_expires_at as string);
     if (now > expiresAt) {
       throw new UnauthorizedException('Refresh token expired');
     }

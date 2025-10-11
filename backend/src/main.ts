@@ -11,7 +11,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = configService.get('PORT', 8081);
+  const port = configService.get<number>('PORT', 8081);
   await app.listen(port);
 }
 void bootstrap();
