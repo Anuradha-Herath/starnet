@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main, initialize-the-backend ]
+    branches: [ main, authentication-testing ]
   pull_request:
-    branches: [ main, initialize-the-backend ]
+    branches: [ main ]
 
 jobs:
   backend:
@@ -29,8 +29,15 @@ jobs:
       - name: Lint code
         run: npm run lint
 
-      - name: Run tests
+      - name: Run unit tests
         run: npm run test
+
+      - name: Run e2e tests
+        run: npm run test:e2e
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Build application
         run: npm run build
