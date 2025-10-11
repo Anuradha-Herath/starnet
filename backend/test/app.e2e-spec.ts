@@ -164,7 +164,7 @@ describe('Authentication (e2e)', () => {
     describe('Invalid Tokens', () => {
       it('should reject tampered JWT tokens', async () => {
         const tamperedToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'; // Valid format but tampered
+          'fake-jwt-token-for-testing-purposes-only-not-a-real-secret'; // Dummy token for testing
 
         await request(app.getHttpServer())
           .get('/auth/me')
@@ -192,8 +192,7 @@ describe('Authentication (e2e)', () => {
       it('should reject tokens with wrong secret', async () => {
         // This would require creating a token with wrong secret
         // For now, we'll test with obviously invalid tokens
-        const invalidToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.wrongsignature';
+        const invalidToken = 'invalid-jwt-token-with-wrong-secret-for-testing';
 
         await request(app.getHttpServer())
           .get('/auth/me')
