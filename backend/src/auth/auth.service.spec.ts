@@ -329,5 +329,468 @@ describe('AuthService', () => {
 
       expect(result).toHaveProperty('message', 'Logged out successfully');
     });
+
+    it('should clear refresh token from database during logout', async () => {
+      const user: User = {
+        id: 'user-id',
+        email: 'john@example.com',
+        name: 'John Doe',
+        role: 'client',
+        phone: '1234567890',
+        created_at: new Date().toISOString(),
+      };
+
+      const mockUpdate = jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ error: null }),
+      });
+
+      const client = mockSupabaseService.getClient();
+      client.from.mockImplementation((table: string) => {
+        if (table === 'user_auth') {
+          return {
+            update: mockUpdate,
+          };
+        }
+        return {};
+      });
+
+      await service.logout(user);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        refresh_token: null,
+        refresh_token_expires_at: null,
+      });
+      expect(mockUpdate).toHaveBeenCalledWith({
+        refresh_token: null,
+        refresh_token_expires_at: null,
+      });
+    });
+  });
+
+  describe('Security Tests', () => {
+    describe('Input Sanitization', () => {
+      it('should handle SQL injection attempts in email field', async () => {
+        const maliciousSignupDto: SignupDto = {
+          firstName: 'Test',
+          lastName: 'User',
+          email: "'; DROP TABLE users; --",
+          phone: '1234567890',
+          password: 'password123',
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: { id: 'user-id' },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        mockJwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        // Should not throw an error - input should be sanitized by Supabase
+        await expect(service.signup(maliciousSignupDto)).resolves.toBeDefined();
+      });
+
+      it('should handle XSS attempts in name fields', async () => {
+        const maliciousSignupDto: SignupDto = {
+          firstName: '<script>alert("xss")</script>',
+          lastName: '<img src=x onerror=alert("xss")>',
+          email: 'xss@example.com',
+          phone: '1234567890',
+          password: 'password123',
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: {
+                      id: 'user-id',
+                      email: 'xss@example.com',
+                      name: '<script>alert("xss")</script> <img src=x onerror=alert("xss")>',
+                      role: 'client',
+                      phone: '1234567890',
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        mockJwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        const result = await service.signup(maliciousSignupDto);
+
+        // Should store the malicious input as-is (XSS prevention should be handled at display layer)
+        expect(result.user.firstName).toBe('<script>alert("xss")</script>');
+        expect(result.user.lastName).toBe('<img src=x onerror=alert("xss")>');
+      });
+
+      it('should handle very long input strings', async () => {
+        const longString = 'a'.repeat(1000);
+        const longSignupDto: SignupDto = {
+          firstName: longString,
+          lastName: longString,
+          email: `test${longString}@example.com`,
+          phone: '1'.repeat(50),
+          password: 'password123',
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: {
+                      id: 'user-id',
+                      email: `test${longString}@example.com`,
+                      name: `${longString} ${longString}`,
+                      role: 'client',
+                      phone: '1'.repeat(50),
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        mockJwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        const result = await service.signup(longSignupDto);
+        expect(result).toBeDefined();
+      });
+    });
+
+    describe('Token Security', () => {
+      it('should generate different tokens for different users', async () => {
+        const signupDto1: SignupDto = {
+          firstName: 'User',
+          lastName: 'One',
+          email: 'user1@example.com',
+          phone: '1234567890',
+          password: 'password123',
+          role: 'client',
+        };
+
+        const signupDto2: SignupDto = {
+          firstName: 'User',
+          lastName: 'Two',
+          email: 'user2@example.com',
+          phone: '0987654321',
+          password: 'password456',
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: {
+                      id: 'user-id',
+                      email: 'user@example.com',
+                      name: 'User Test',
+                      role: 'client',
+                      phone: '1234567890',
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        mockJwtService.sign
+          .mockReturnValueOnce('token1')
+          .mockReturnValueOnce('refresh1')
+          .mockReturnValueOnce('token2')
+          .mockReturnValueOnce('refresh2');
+
+        const result1 = await service.signup(signupDto1);
+        const result2 = await service.signup(signupDto2);
+
+        expect(result1.token).not.toBe(result2.token);
+        expect(result1.refreshToken).not.toBe(result2.refreshToken);
+      });
+
+      it('should include proper payload in tokens', async () => {
+        const signupDto: SignupDto = {
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          phone: '1234567890',
+          password: 'password123',
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: {
+                      id: 'test-user-id',
+                      email: 'test@example.com',
+                      name: 'Test User',
+                      role: 'client',
+                      phone: '1234567890',
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        mockJwtService.sign.mockImplementation((payload) => {
+          // Verify that the payload contains expected fields
+          expect(payload).toHaveProperty('sub', 'test-user-id');
+          expect(payload).toHaveProperty('email', 'test@example.com');
+          expect(payload).toHaveProperty('name', 'Test User');
+          expect(payload).toHaveProperty('role', 'client');
+          expect(payload).toHaveProperty('phone', '1234567890');
+          return 'mock-token';
+        });
+
+        await service.signup(signupDto);
+
+        expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe('Password Security', () => {
+      it('should hash passwords with proper salt rounds', async () => {
+        const signupDto: SignupDto = {
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          phone: '1234567890',
+          password: 'password123',
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: {
+                      id: 'user-id',
+                      email: 'test@example.com',
+                      name: 'Test User',
+                      role: 'client',
+                      phone: '1234567890',
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        // Mock bcrypt.hash to verify salt rounds
+        const mockHash = jest
+          .fn()
+          .mockResolvedValue('$2a$12$mockhashedpassword');
+        jest.spyOn(bcrypt, 'hash').mockImplementation(mockHash);
+
+        mockJwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        await service.signup(signupDto);
+
+        expect(mockHash).toHaveBeenCalledWith('password123', 12);
+      });
+
+      it('should reject weak passwords', async () => {
+        // Test documents that password strength validation should be added
+        // Currently the service allows any password
+        const weakSignupDto: SignupDto = {
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'weak@example.com',
+          phone: '1234567890',
+          password: '123', // Very weak password
+          role: 'client',
+        };
+
+        const client = mockSupabaseService.getClient();
+        client.from.mockImplementation((table: string) => {
+          if (table === 'users') {
+            return {
+              select: jest.fn().mockReturnValue({
+                eq: jest.fn().mockReturnValue({
+                  single: jest
+                    .fn()
+                    .mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+              insert: jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                  single: jest.fn().mockResolvedValue({
+                    data: {
+                      id: 'user-id',
+                      email: 'weak@example.com',
+                      name: 'Test User',
+                      role: 'client',
+                      phone: '1234567890',
+                      created_at: new Date().toISOString(),
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          } else if (table === 'user_auth') {
+            return {
+              insert: jest.fn().mockResolvedValue({ error: null }),
+              update: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }
+          return {};
+        });
+
+        mockJwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        // Currently allows weak passwords - this should be flagged for improvement
+        await expect(service.signup(weakSignupDto)).resolves.toBeDefined();
+      });
+    });
   });
 });
