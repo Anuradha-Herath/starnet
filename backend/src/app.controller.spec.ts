@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SupabaseService } from './shared/supabase/supabase.service';
+import { PrismaService } from './prisma/prisma.service';
 
 describe('AppController', () => {
   let appController: AppController;
 
   beforeEach(async () => {
-    const mockSupabaseService = {
-      getClient: jest.fn(),
+    const mockPrismaService = {
+      user: { findMany: jest.fn().mockResolvedValue([]) },
     };
 
     const app: TestingModule = await Test.createTestingModule({
@@ -16,8 +16,8 @@ describe('AppController', () => {
       providers: [
         AppService,
         {
-          provide: SupabaseService,
-          useValue: mockSupabaseService,
+          provide: PrismaService,
+          useValue: mockPrismaService,
         },
       ],
     }).compile();

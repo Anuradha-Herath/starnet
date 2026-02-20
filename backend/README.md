@@ -5,16 +5,16 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
 ## 🏗️ Architecture
 
 - **Framework**: NestJS with TypeScript
-- **Database**: PostgreSQL (hosted on Supabase)
+- **Database**: SQLite
 - **Authentication**: JWT with refresh tokens
-- **ORM**: Supabase client for database operations
+- **ORM**: Prisma
 
 ## 📦 Tech Stack
 
 - **Runtime**: Node.js
 - **Framework**: NestJS
 - **Language**: TypeScript
-- **Database**: PostgreSQL via Supabase
+- **Database**: SQLite with Prisma ORM
 - **Authentication**: JWT (jsonwebtoken)
 - **Password Hashing**: bcrypt
 - **Validation**: class-validator
@@ -25,7 +25,6 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
 
 - Node.js (v18 or higher)
 - npm or yarn
-- Supabase account and database
 
 ### Installation
 
@@ -35,19 +34,20 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
    ```
 
 2. **Environment Setup:**
-   Create a `.env` file in the backend directory:
+   Copy `.env.example` to `.env` in the backend directory and set:
    ```env
-   SUPABASE_URL=your-supabase-project-url
-   SUPABASE_ANON_KEY=your-supabase-anon-key
+   DATABASE_URL="file:./dev.db"
    JWT_SECRET=your-super-secret-jwt-key-32-chars-min
    PORT=8081
    ```
 
 3. **Database Setup:**
-   Run the initial migration script in your Supabase SQL editor:
-   ```sql
-   -- Execute: backend/migrations/001_initial_setup.sql
+   Generate the Prisma client and run migrations:
+   ```bash
+   npm run prisma:generate
+   npm run prisma:migrate
    ```
+   This creates the SQLite database file (e.g. `prisma/dev.db`) and applies the schema.
 
 ### Running the Application
 
@@ -80,60 +80,61 @@ The backend will start on `http://localhost:8081`
 
 ## 🗄️ Database Schema
 
-### Tables
+The schema is defined in **`prisma/schema.prisma`** and managed by Prisma. Main models:
 
-#### `users`
-```sql
-CREATE TABLE users (
-    id VARCHAR(255) PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(20),
-    role VARCHAR(20) NOT NULL CHECK (role IN ('client', 'performer', 'admin')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+- **User** – id, email, name, role, phone, createdAt, updatedAt
+- **UserAuth** – userId, passwordHash, refreshToken, refreshTokenExpiresAt (one-to-one with User)
 
-#### `user_auth`
-```sql
-CREATE TABLE user_auth (
-    user_id VARCHAR(255) PRIMARY KEY REFERENCES users(id),
-    password_hash VARCHAR(255) NOT NULL,
-    refresh_token TEXT,
-    refresh_token_expires_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+After changing the schema, run:
+```bash
+npm run prisma:migrate
 ```
 
 ## 🔧 Development
 
 ### Project Structure
+
+The backend follows a **feature-based** NestJS layout with clear separation of concerns:
+
 ```
 backend/
 ├── src/
-│   ├── app.controller.ts      # Health check endpoint
+│   ├── main.ts                # Application entry point
 │   ├── app.module.ts          # Root application module
+│   ├── app.controller.ts      # Root API (e.g. /api, /api/test-db)
 │   ├── app.service.ts         # Application service
-│   ├── auth/                  # Authentication module
-│   │   ├── auth.controller.ts # Auth API endpoints
-│   │   ├── auth.service.ts    # Auth business logic
-│   │   ├── auth.module.ts     # Auth module definition
-│   │   ├── jwt.strategy.ts    # JWT validation strategy
-│   │   ├── jwt-auth.guard.ts  # JWT route protection
-│   │   ├── refresh-token.strategy.ts
-│   │   ├── refresh-token.guard.ts
-│   │   └── dto/               # Request/Response DTOs
-│   ├── common/                # Shared utilities
-│   ├── shared/                # Shared services (Supabase)
-│   └── main.ts                # Application entry point
-├── migrations/                # Database migration scripts
-├── test/                      # Test files
-├── Dockerfile                 # Docker configuration
-└── package.json               # Dependencies and scripts
+│   │
+│   ├── common/                # Shared code across modules
+│   │   ├── filters/           # Exception filters (e.g. AllExceptionsFilter)
+│   │   └── common.module.ts   # Optional shared module
+│   │
+│   ├── prisma/                # Database layer (Prisma ORM)
+│   │   ├── prisma.module.ts   # Global Prisma module
+│   │   └── prisma.service.ts  # Prisma client service
+│   │
+│   ├── health/                # Health check feature module
+│   │   ├── health.module.ts
+│   │   └── health.controller.ts   # GET /api/health
+│   │
+│   └── auth/                  # Authentication feature module
+│       ├── auth.module.ts
+│       ├── auth.controller.ts # Auth API endpoints
+│       ├── auth.service.ts    # Auth business logic
+│       ├── dto/               # Request/response DTOs
+│       │   └── auth.dto.ts
+│       ├── guards/            # Route guards (JWT, refresh token)
+│       ├── strategies/        # Passport strategies
+│       └── interfaces/        # TypeScript interfaces (e.g. User)
+│
+├── prisma/
+│   ├── schema.prisma          # Database schema (SQLite)
+│   └── migrations/            # Prisma migrations
+├── test/                      # E2E tests
+├── Dockerfile
+└── package.json
 ```
+
+**Conventions:** Each feature lives in its own folder with `*.module.ts`, `*.controller.ts`, `*.service.ts`. Shared pieces (filters, guards, decorators) go under `common/`. Add new features as new top-level folders under `src/` (e.g. `users/`, `bookings/`).
 
 ### Available Scripts
 
@@ -144,6 +145,9 @@ npm run build          # Build for production
 npm run test           # Run unit tests
 npm run test:e2e       # Run end-to-end tests
 npm run test:cov       # Run tests with coverage
+npm run prisma:generate  # Generate Prisma client
+npm run prisma:migrate   # Run database migrations
+npm run prisma:studio    # Open Prisma Studio (DB GUI)
 ```
 
 ## 🔐 Security Features
@@ -178,8 +182,7 @@ npm run test:cov
 
 ### Environment Variables for Production
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-production-anon-key
+DATABASE_URL="file:./prod.db"
 JWT_SECRET=your-production-jwt-secret-min-32-chars
 PORT=8081
 NODE_ENV=production

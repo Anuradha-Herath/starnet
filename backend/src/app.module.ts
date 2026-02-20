@@ -4,12 +4,12 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { SharedModule } from './shared/shared.module';
-import { HealthController } from './health.controller';
+import { PrismaModule } from './prisma/prisma.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), AuthModule, SharedModule],
-  controllers: [AppController, HealthController],
+  imports: [ConfigModule.forRoot(), PrismaModule, AuthModule, HealthModule],
+  controllers: [AppController],
   providers: [
     AppService,
     {

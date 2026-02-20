@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { SupabaseService } from './shared/supabase/supabase.service';
+import { PrismaService } from './prisma/prisma.service';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly supabaseService: SupabaseService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get()
@@ -17,26 +17,17 @@ export class AppController {
   @Get('test-db')
   async testDatabaseConnection() {
     try {
-      // Simple test: Try to select from a table (adjust 'users' if your table name differs)
-      const { data, error } = await this.supabaseService
-        .getClient()
-        .from('users')
-        .select('*')
-        .limit(1);
-      if (error) {
-        return { status: 'error', message: error.message };
-      }
+      const users = await this.prisma.user.findMany({ take: 1 });
       return {
         status: 'success',
         message: 'Database connection is working!',
-        data,
+        data: users,
       };
     } catch (err: unknown) {
       if (err instanceof Error) {
         return { status: 'error', message: err.message };
-      } else {
-        return { status: 'error', message: 'Unknown error' };
       }
+      return { status: 'error', message: 'Unknown error' };
     }
   }
 }

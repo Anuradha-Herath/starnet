@@ -5,52 +5,44 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
-import { SupabaseService } from '../shared/supabase/supabase.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto, LoginDto } from './dto/auth.dto';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { User } from './user.interface';
+import { User } from './interfaces/user.interface';
 import * as bcrypt from 'bcryptjs';
 
 jest.mock('bcryptjs');
 
 describe('AuthService', () => {
   let service: AuthService;
+  let mockPrismaService: {
+    user: { findUnique: jest.Mock; create: jest.Mock };
+    userAuth: { create: jest.Mock; findUnique: jest.Mock; update: jest.Mock; updateMany: jest.Mock };
+  };
 
   const mockJwtService = {
     sign: jest.fn(),
   };
 
-  const mockSupabaseService = {
-    getClient: jest.fn().mockReturnValue({
-      from: jest.fn().mockImplementation((_table: string) => ({
-        select: jest.fn().mockImplementation((_fields?: string) => ({
-          eq: jest.fn().mockImplementation((_field: string, _value: any) => ({
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          })),
-          single: jest.fn().mockResolvedValue({ data: null, error: null }),
-        })),
-        insert: jest.fn().mockImplementation((_data: any) => ({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        })),
-        update: jest.fn().mockImplementation((_data: any) => ({
-          eq: jest
-            .fn()
-            .mockImplementation((_field: string, _value: any) =>
-              Promise.resolve({ error: null }),
-            ),
-        })),
-      })),
-    }),
-  };
-
   beforeEach(async () => {
+    mockPrismaService = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      userAuth: {
+        create: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({}),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: JwtService, useValue: mockJwtService },
-        { provide: SupabaseService, useValue: mockSupabaseService },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
@@ -78,38 +70,12 @@ describe('AuthService', () => {
         name: 'John Doe',
         role: 'client',
         phone: '1234567890',
-        created_at: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((_table: string) => {
-        if (_table === 'users') {
-          return {
-            select: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                single: jest
-                  .fn()
-                  .mockResolvedValue({ data: null, error: null }),
-              }),
-            }),
-            insert: jest.fn().mockReturnValue({
-              select: jest.fn().mockReturnValue({
-                single: jest
-                  .fn()
-                  .mockResolvedValue({ data: mockUser, error: null }),
-              }),
-            }),
-          };
-        } else if (_table === 'user_auth') {
-          return {
-            insert: jest.fn().mockResolvedValue({ error: null }),
-            update: jest.fn().mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ error: null }),
-            }),
-          };
-        }
-        return {};
-      });
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.create.mockResolvedValue(mockUser);
 
       mockJwtService.sign
         .mockReturnValueOnce('access-token')
@@ -133,21 +99,8 @@ describe('AuthService', () => {
         role: 'client',
       };
 
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'users') {
-          return {
-            select: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({
-                  data: { id: 'existing-id' },
-                  error: null,
-                }),
-              }),
-            }),
-          };
-        }
-        return {};
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'existing-id',
       });
 
       await expect(service.signup(signupDto)).rejects.toThrow(
@@ -169,44 +122,16 @@ describe('AuthService', () => {
         name: 'John Doe',
         role: 'client',
         phone: '1234567890',
-        created_at: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        auth: {
+          passwordHash: '$2a$12$hashedpassword',
+        },
       };
 
-      const mockAuthData = {
-        password_hash: '$2a$12$hashedpassword', // Mock bcrypt hash
-      };
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'users') {
-          return {
-            select: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                single: jest
-                  .fn()
-                  .mockResolvedValue({ data: mockUser, error: null }),
-              }),
-            }),
-          };
-        } else if (table === 'user_auth') {
-          return {
-            select: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                single: jest
-                  .fn()
-                  .mockResolvedValue({ data: mockAuthData, error: null }),
-              }),
-            }),
-            update: jest.fn().mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ error: null }),
-            }),
-          };
-        }
-        return {};
-      });
-
-      // Mock bcrypt.compare to return true
-      (bcrypt.compare as jest.Mock).mockReturnValue(true);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       mockJwtService.sign
         .mockReturnValueOnce('access-token')
@@ -225,21 +150,7 @@ describe('AuthService', () => {
         password: 'wrongpass',
       };
 
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'users') {
-          return {
-            select: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                single: jest
-                  .fn()
-                  .mockResolvedValue({ data: null, error: null }),
-              }),
-            }),
-          };
-        }
-        return {};
-      });
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
@@ -257,18 +168,6 @@ describe('AuthService', () => {
         phone: '1234567890',
         created_at: new Date().toISOString(),
       };
-
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'user_auth') {
-          return {
-            update: jest.fn().mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ error: null }),
-            }),
-          };
-        }
-        return {};
-      });
 
       mockJwtService.sign.mockClear();
       mockJwtService.sign
@@ -313,18 +212,6 @@ describe('AuthService', () => {
         created_at: new Date().toISOString(),
       };
 
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'user_auth') {
-          return {
-            update: jest.fn().mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ error: null }),
-            }),
-          };
-        }
-        return {};
-      });
-
       const result = await service.logout(user);
 
       expect(result).toHaveProperty('message', 'Logged out successfully');
@@ -340,29 +227,14 @@ describe('AuthService', () => {
         created_at: new Date().toISOString(),
       };
 
-      const mockUpdate = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ error: null }),
-      });
-
-      const client = mockSupabaseService.getClient();
-      client.from.mockImplementation((table: string) => {
-        if (table === 'user_auth') {
-          return {
-            update: mockUpdate,
-          };
-        }
-        return {};
-      });
-
       await service.logout(user);
 
-      expect(mockUpdate).toHaveBeenCalledWith({
-        refresh_token: null,
-        refresh_token_expires_at: null,
-      });
-      expect(mockUpdate).toHaveBeenCalledWith({
-        refresh_token: null,
-        refresh_token_expires_at: null,
+      expect(mockPrismaService.userAuth.updateMany).toHaveBeenCalledWith({
+        where: { userId: user.id },
+        data: {
+          refreshToken: null,
+          refreshTokenExpiresAt: null,
+        },
       });
     });
   });
@@ -379,42 +251,22 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: { id: 'user-id' },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create.mockResolvedValue({
+          id: 'user-id',
+          email: "'; DROP TABLE users; --",
+          name: 'Test User',
+          role: 'client',
+          phone: '1234567890',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         mockJwtService.sign
           .mockReturnValueOnce('access-token')
           .mockReturnValueOnce('refresh-token');
 
-        // Should not throw an error - input should be sanitized by Supabase
+        // Should not throw an error - input should be sanitized by Prisma
         await expect(service.signup(maliciousSignupDto)).resolves.toBeDefined();
       });
 
@@ -428,42 +280,15 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: {
-                      id: 'user-id',
-                      email: 'xss@example.com',
-                      name: '<script>alert("xss")</script> <img src=x onerror=alert("xss")>',
-                      role: 'client',
-                      phone: '1234567890',
-                      created_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create.mockResolvedValue({
+          id: 'user-id',
+          email: 'xss@example.com',
+          name: '<script>alert("xss")</script> <img src=x onerror=alert("xss")>',
+          role: 'client',
+          phone: '1234567890',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         mockJwtService.sign
@@ -488,42 +313,15 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: {
-                      id: 'user-id',
-                      email: `test${longString}@example.com`,
-                      name: `${longString} ${longString}`,
-                      role: 'client',
-                      phone: '1'.repeat(50),
-                      created_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create.mockResolvedValue({
+          id: 'user-id',
+          email: `test${longString}@example.com`,
+          name: `${longString} ${longString}`,
+          role: 'client',
+          phone: '1'.repeat(50),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         mockJwtService.sign
@@ -555,43 +353,26 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: {
-                      id: 'user-id',
-                      email: 'user@example.com',
-                      name: 'User Test',
-                      role: 'client',
-                      phone: '1234567890',
-                      created_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
-        });
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create
+          .mockResolvedValueOnce({
+            id: 'user-1',
+            email: 'user1@example.com',
+            name: 'User One',
+            role: 'client',
+            phone: '1234567890',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .mockResolvedValueOnce({
+            id: 'user-2',
+            email: 'user2@example.com',
+            name: 'User Two',
+            role: 'client',
+            phone: '0987654321',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
 
         mockJwtService.sign
           .mockReturnValueOnce('token1')
@@ -616,42 +397,15 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: {
-                      id: 'test-user-id',
-                      email: 'test@example.com',
-                      name: 'Test User',
-                      role: 'client',
-                      phone: '1234567890',
-                      created_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create.mockResolvedValue({
+          id: 'test-user-id',
+          email: 'test@example.com',
+          name: 'Test User',
+          role: 'client',
+          phone: '1234567890',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         mockJwtService.sign.mockImplementation((payload) => {
@@ -681,42 +435,15 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: {
-                      id: 'user-id',
-                      email: 'test@example.com',
-                      name: 'Test User',
-                      role: 'client',
-                      phone: '1234567890',
-                      created_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create.mockResolvedValue({
+          id: 'user-id',
+          email: 'test@example.com',
+          name: 'Test User',
+          role: 'client',
+          phone: '1234567890',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         // Mock bcrypt.hash to verify salt rounds
@@ -746,42 +473,15 @@ describe('AuthService', () => {
           role: 'client',
         };
 
-        const client = mockSupabaseService.getClient();
-        client.from.mockImplementation((table: string) => {
-          if (table === 'users') {
-            return {
-              select: jest.fn().mockReturnValue({
-                eq: jest.fn().mockReturnValue({
-                  single: jest
-                    .fn()
-                    .mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-              insert: jest.fn().mockReturnValue({
-                select: jest.fn().mockReturnValue({
-                  single: jest.fn().mockResolvedValue({
-                    data: {
-                      id: 'user-id',
-                      email: 'weak@example.com',
-                      name: 'Test User',
-                      role: 'client',
-                      phone: '1234567890',
-                      created_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          } else if (table === 'user_auth') {
-            return {
-              insert: jest.fn().mockResolvedValue({ error: null }),
-              update: jest.fn().mockReturnValue({
-                eq: jest.fn().mockResolvedValue({ error: null }),
-              }),
-            };
-          }
-          return {};
+        mockPrismaService.user.findUnique.mockResolvedValue(null);
+        mockPrismaService.user.create.mockResolvedValue({
+          id: 'user-id',
+          email: 'weak@example.com',
+          name: 'Test User',
+          role: 'client',
+          phone: '1234567890',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         mockJwtService.sign

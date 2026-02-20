@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { SupabaseService } from '../shared/supabase/supabase.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface RefreshTokenPayload {
   sub: string;
@@ -17,7 +17,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
   Strategy,
   'refresh-jwt',
 ) {
-  constructor(private supabaseService: SupabaseService) {
+  constructor(private prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -26,27 +26,22 @@ export class RefreshTokenStrategy extends PassportStrategy(
   }
 
   async validate(payload: RefreshTokenPayload) {
-    // Verify this is a refresh token
     if (payload.type !== 'refresh') {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    // Check if refresh token exists in database and is not expired
-    const { data, error } = await this.supabaseService
-      .getClient()
-      .from('user_auth')
-      .select('user_id, refresh_token_expires_at')
-      .eq('user_id', payload.sub)
-      .single();
+    const auth = await this.prisma.userAuth.findUnique({
+      where: { userId: payload.sub },
+      select: { refreshTokenExpiresAt: true },
+    });
 
-    if (error || !data) {
+    if (!auth) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Check if token is expired in database
     const now = new Date();
-    const expiresAt = new Date(data.refresh_token_expires_at as string);
-    if (now > expiresAt) {
+    const expiresAt = auth.refreshTokenExpiresAt;
+    if (!expiresAt || now > expiresAt) {
       throw new UnauthorizedException('Refresh token expired');
     }
 
