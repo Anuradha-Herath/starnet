@@ -23,13 +23,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: JwtPayload): User {
+    const created_at = payload.created_at ?? new Date().toISOString();
     return {
       id: payload.sub,
       email: payload.email,
       name: payload.name,
       role: payload.role as 'client' | 'performer' | 'admin',
       phone: payload.phone,
-      created_at: payload.created_at,
+      created_at,
+      updated_at: created_at,
     };
   }
 }

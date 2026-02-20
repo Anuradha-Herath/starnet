@@ -1,46 +1,32 @@
 import {
   Controller,
-  Post,
-  Body,
   Get,
+  Patch,
+  Body,
   UseGuards,
   Request,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignupDto, LoginDto } from './dto/auth.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { ClerkAuthGuard } from './guards/clerk-auth.guard';
 import { User } from './interfaces/user.interface';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('signup')
-  async signup(@Body() signupDto: SignupDto) {
-    return this.authService.signup(signupDto);
-  }
-
-  @Post('login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
-  }
-
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(ClerkAuthGuard)
   @Get('me')
   getProfile(@Request() req: { user: User }) {
     return this.authService.getCurrentUser(req.user);
   }
 
-  @UseGuards(RefreshTokenGuard)
-  @Post('refresh')
-  async refreshToken(@Request() req: { user: User }) {
-    return this.authService.refreshToken(req.user);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('logout')
-  async logout(@Request() req: { user: User }) {
-    return this.authService.logout(req.user);
+  @UseGuards(ClerkAuthGuard)
+  @Patch('me')
+  async updateProfile(
+    @Request() req: { user: User },
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(req.user, dto);
   }
 }

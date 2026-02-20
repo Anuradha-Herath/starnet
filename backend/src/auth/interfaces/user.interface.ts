@@ -5,6 +5,7 @@ export interface User {
   role: 'client' | 'performer' | 'admin';
   phone: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface UserResponse {

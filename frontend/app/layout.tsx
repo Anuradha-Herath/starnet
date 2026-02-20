@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Poppins } from "next/font/google"
+import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
 import { NotificationProvider } from "@/components/notifications/notification-provider"
 import { AuthProvider } from "@/contexts/auth-context"
@@ -26,9 +27,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={poppins.variable}>
       <body className="font-sans antialiased bg-gradient-to-br from-gray-50 to-white text-gray-900 overflow-x-hidden">
-        <AuthProvider>
-          <NotificationProvider>{children}</NotificationProvider>
-        </AuthProvider>
+        <ClerkProvider>
+          <AuthProvider>
+            <NotificationProvider>{children}</NotificationProvider>
+          </AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   )

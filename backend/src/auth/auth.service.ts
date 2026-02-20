@@ -1,219 +1,111 @@
-import {
-  Injectable,
-  ConflictException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SignupDto, LoginDto } from './dto/auth.dto';
 import { User, UserResponse } from './interfaces/user.interface';
+
+export interface ClerkUserPayload {
+  clerkUserId: string;
+  email: string;
+  name: string;
+}
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private jwtService: JwtService,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async signup(
-    signupDto: SignupDto,
-  ): Promise<{ token: string; refreshToken: string; user: UserResponse }> {
-    const { firstName, lastName, email, phone, password, role } = signupDto;
+  /**
+   * Get or create app User from Clerk token payload.
+   * New users get default role 'client'; they can update via PATCH /auth/me.
+   */
+  async getOrCreateUserFromClerk(payload: ClerkUserPayload): Promise<User> {
+    const { clerkUserId, email, name } = payload;
 
-    const existingUser = await this.prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
+      where: { clerkUserId },
+    });
+
+    if (user) {
+      return this.dbUserToInterface(user);
+    }
+
+    // Try by email in case of legacy or duplicate Clerk accounts
+    const existingByEmail = await this.prisma.user.findUnique({
       where: { email },
     });
 
-    if (existingUser) {
+    if (existingByEmail) {
+      if (!existingByEmail.clerkUserId) {
+        const updated = await this.prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: { clerkUserId },
+        });
+        return this.dbUserToInterface(updated);
+      }
       throw new ConflictException('User with this email already exists');
     }
 
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    const fullName = `${firstName} ${lastName}`;
     const newUser = await this.prisma.user.create({
       data: {
+        clerkUserId,
         email,
-        name: fullName,
-        role,
-        phone,
+        name: name || 'User',
+        role: 'client',
+        phone: null,
       },
     });
 
-    await this.prisma.userAuth.create({
-      data: {
-        userId: newUser.id,
-        passwordHash: hashedPassword,
-        refreshToken: null,
-        refreshTokenExpiresAt: null,
-      },
-    });
-
-    const payload = {
-      sub: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      role: newUser.role,
-      phone: newUser.phone,
-    };
-
-    const token = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(
-      { ...payload, type: 'refresh' },
-      { expiresIn: '7d' },
-    );
-
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.prisma.userAuth.update({
-      where: { userId: newUser.id },
-      data: {
-        refreshToken,
-        refreshTokenExpiresAt: expiresAt,
-      },
-    });
-
-    const userResponse: UserResponse = {
-      id: newUser.id,
-      firstName,
-      lastName,
-      email: newUser.email,
-      phone: newUser.phone ?? '',
-      role: newUser.role as 'client' | 'performer' | 'admin',
-      createdAt: newUser.createdAt.toISOString(),
-      updatedAt: newUser.updatedAt.toISOString(),
-    };
-
-    return {
-      token,
-      refreshToken,
-      user: userResponse,
-    };
+    return this.dbUserToInterface(newUser);
   }
 
-  async login(
-    loginDto: LoginDto,
-  ): Promise<{ token: string; refreshToken: string; user: UserResponse }> {
-    const { email, password } = loginDto;
-
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: { auth: true },
-    });
-
-    if (!user || !user.auth) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      user.auth.passwordHash,
-    );
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      phone: user.phone,
-    };
-
-    const token = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(
-      { ...payload, type: 'refresh' },
-      { expiresIn: '7d' },
-    );
-
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.prisma.userAuth.update({
-      where: { userId: user.id },
-      data: {
-        refreshToken,
-        refreshTokenExpiresAt: expiresAt,
-      },
-    });
-
-    const nameParts = user.name.split(' ');
+  getCurrentUser(user: User): UserResponse {
+    const nameParts = (user.name || '').split(' ');
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    const userResponse: UserResponse = {
+    return {
       id: user.id,
       firstName,
       lastName,
       email: user.email,
       phone: user.phone ?? '',
-      role: user.role as 'client' | 'performer' | 'admin',
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
-
-    return {
-      token,
-      refreshToken,
-      user: userResponse,
-    };
-  }
-
-  getCurrentUser(user: User): UserResponse {
-    const nameParts = user.name.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    return {
-      id: user.id,
-      firstName,
-      lastName,
-      email: user.email,
-      phone: user.phone,
       role: user.role,
       createdAt: user.created_at,
-      updatedAt: user.created_at,
+      updatedAt: user.updated_at,
     };
   }
 
-  async refreshToken(
+  async updateProfile(
     user: User,
-  ): Promise<{ token: string; refreshToken: string }> {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      phone: user.phone,
-    };
-
-    const token = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(
-      { ...payload, type: 'refresh' },
-      { expiresIn: '7d' },
-    );
-
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.prisma.userAuth.updateMany({
-      where: { userId: user.id },
+    data: { role?: 'client' | 'performer'; phone?: string },
+  ): Promise<UserResponse> {
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
       data: {
-        refreshToken,
-        refreshTokenExpiresAt: expiresAt,
+        ...(data.role != null && { role: data.role }),
+        ...(data.phone != null && { phone: data.phone }),
       },
     });
 
-    return { token, refreshToken };
+    return this.getCurrentUser(this.dbUserToInterface(updated));
   }
 
-  async logout(user: User): Promise<{ message: string }> {
-    await this.prisma.userAuth.updateMany({
-      where: { userId: user.id },
-      data: {
-        refreshToken: null,
-        refreshTokenExpiresAt: null,
-      },
-    });
-
-    return { message: 'Logged out successfully' };
+  private dbUserToInterface(row: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    phone: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    clerkUserId?: string | null;
+  }): User {
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role as 'client' | 'performer' | 'admin',
+      phone: row.phone ?? '',
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString(),
+    };
   }
 }

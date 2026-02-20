@@ -1,114 +1,68 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { useAuth as useClerkAuth } from '@clerk/nextjs'
 import { authAPI } from '@/lib/auth/api-client'
-import { tokenStorage, isTokenExpired } from '@/lib/auth/token-manager'
 import type { User, AuthContextType, SignupData } from '@/lib/auth/types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn, getToken, signOut } = useClerkAuth()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      console.log('[AuthContext] Initializing authentication...')
-      
-      const token = tokenStorage.getToken()
-      const cachedUser = tokenStorage.getCachedUser()
-      
-      if (!token) {
-        console.log('[AuthContext] No token found')
-        tokenStorage.clearAll()
-        setUser(null)
-        setIsLoading(false)
-        return
-      }
+    authAPI.setTokenGetter(() => getToken())
+  }, [getToken])
 
-      if (isTokenExpired(token)) {
-        console.log('[AuthContext] Token expired, attempting refresh...')
-        const newToken = await authAPI.refreshAccessToken()
-        
-        if (!newToken) {
-          console.log('[AuthContext] Token refresh failed')
-          setUser(null)
-          setIsLoading(false)
-          return
-        }
-        
-        console.log('[AuthContext] Token refreshed successfully')
-      }
+  useEffect(() => {
+    if (!isLoaded) return
 
-      if (cachedUser) {
-        console.log('[AuthContext] Using cached user data')
-        setUser(cachedUser)
-        setIsLoading(false)
-        return
-      }
-      
-      try {
-        console.log('[AuthContext] Validating session...')
-        const currentUser = await authAPI.getCurrentUser()
-        console.log('[AuthContext] Session valid:', currentUser.email)
-        setUser(currentUser)
-        tokenStorage.setCachedUser(currentUser)
-      } catch (error: any) {
-        console.error('[AuthContext] Session validation failed:', error)
-        tokenStorage.clearAll()
-        setUser(null)
-      }
-      
+    if (!isSignedIn) {
+      setUser(null)
       setIsLoading(false)
+      return
     }
-    
-    initializeAuth()
+
+    let cancelled = false
+    authAPI
+      .getCurrentUser()
+      .then((currentUser) => {
+        if (!cancelled) setUser(currentUser)
+      })
+      .catch(() => {
+        if (!cancelled) setUser(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isLoaded, isSignedIn])
+
+  const login = useCallback(async (_email: string, _password: string) => {
+    // Clerk handles login; redirect to sign-in if needed
+    if (typeof window !== 'undefined') window.location.href = '/auth/login'
   }, [])
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await authAPI.login({ email, password })
-      
-      console.log('[AuthContext] Login successful:', response.user.email)
-      setUser(response.user)
-      tokenStorage.setCachedUser(response.user)
-    } catch (error) {
-      console.error('[AuthContext] Login failed:', error)
-      throw error
-    }
-  }
+  const signup = useCallback(async (_userData?: SignupData) => {
+    if (typeof window !== 'undefined') window.location.href = '/auth/signup'
+  }, [])
 
-  const signup = async (userData: SignupData) => {
-    try {
-      await authAPI.signup(userData)
-      console.log('[AuthContext] Signup successful')
-      
-      tokenStorage.clearAll()
-      setUser(null)
-    } catch (error) {
-      console.error('[AuthContext] Signup failed:', error)
-      throw error
-    }
-  }
-
-  const logout = async () => {
-    console.log('[AuthContext] Logging out...')
-    
-    try {
-      await authAPI.logout()
-    } catch (error) {
-      console.warn('[AuthContext] Logout request failed:', error)
-    }
-    
+  const logout = useCallback(async () => {
+    await signOut()
     setUser(null)
-    tokenStorage.clearAll()
-  }
+    if (typeof window !== 'undefined') window.location.href = '/'
+  }, [signOut])
 
   const value: AuthContextType = {
     user,
-    isLoading,
-    isAuthenticated: !!user,
-    hasValidToken: tokenStorage.getToken() !== null && !isTokenExpired(tokenStorage.getToken()),
+    isLoading: !isLoaded || isLoading,
+    isAuthenticated: !!user && isSignedIn,
+    hasValidToken: isSignedIn,
     login,
     signup,
     logout,
@@ -119,10 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext)
-  
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
-  
   return context
 }

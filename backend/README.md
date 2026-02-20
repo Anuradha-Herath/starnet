@@ -6,7 +6,7 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
 
 - **Framework**: NestJS with TypeScript
 - **Database**: SQLite
-- **Authentication**: JWT with refresh tokens
+- **Authentication**: Clerk (JWT verification and user sync)
 - **ORM**: Prisma
 
 ## 📦 Tech Stack
@@ -14,9 +14,8 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
 - **Runtime**: Node.js
 - **Framework**: NestJS
 - **Language**: TypeScript
-- **Database**: SQLite with Prisma ORM
-- **Authentication**: JWT (jsonwebtoken)
-- **Password Hashing**: bcrypt
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: Clerk (`@clerk/backend` for JWT verification)
 - **Validation**: class-validator
 
 ## 🚀 Getting Started
@@ -36,8 +35,8 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
 2. **Environment Setup:**
    Copy `.env.example` to `.env` in the backend directory and set:
    ```env
-   DATABASE_URL="file:./dev.db"
-   JWT_SECRET=your-super-secret-jwt-key-32-chars-min
+   DATABASE_URL="postgresql://..."
+   CLERK_SECRET_KEY=sk_test_...   # From Clerk Dashboard → API Keys
    PORT=8081
    ```
 
@@ -47,7 +46,7 @@ A NestJS backend for the Starnet artist booking platform, providing authenticati
    npm run prisma:generate
    npm run prisma:migrate
    ```
-   This creates the SQLite database file (e.g. `prisma/dev.db`) and applies the schema.
+   This applies the schema to your PostgreSQL database.
 
 ### Running the Application
 
@@ -68,12 +67,10 @@ The backend will start on `http://localhost:8081`
 
 ## 📋 API Endpoints
 
-### Authentication
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/login` - User authentication
-- `GET /api/auth/me` - Get current user profile (JWT required)
-- `POST /api/auth/refresh` - Refresh access token
-- `POST /api/auth/logout` - Logout user
+### Authentication (Clerk)
+- `GET /api/auth/me` - Get current user profile (Clerk JWT required); creates/syncs user from Clerk
+- `PATCH /api/auth/me` - Update profile (e.g. `role`: client | performer, `phone`)
+- Sign-in and sign-up are handled by the frontend with Clerk; the backend only verifies the Clerk JWT and syncs the user to the database.
 
 ### Health Check
 - `GET /api/health` - Application health status
