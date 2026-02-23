@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { SupabaseService } from './supabase.service';
+import { MongodbService } from './mongodb.service';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly supabaseService: SupabaseService,
+    private readonly mongodbService: MongodbService,
   ) {}
 
   @Get()
@@ -17,19 +17,14 @@ export class AppController {
   @Get('test-db')
   async testDatabaseConnection() {
     try {
-      // Simple test: Try to select from a table (adjust 'users' if your table name differs)
-      const { data, error } = await this.supabaseService
-        .getClient()
-        .from('users')
-        .select('*')
-        .limit(1);
-      if (error) {
-        return { status: 'error', message: error.message };
+      const isConnected = await this.mongodbService.testConnection();
+      if (!isConnected) {
+        return { status: 'error', message: 'Database not connected' };
       }
       return {
         status: 'success',
         message: 'Database connection is working!',
-        data,
+        connectionState: 'connected',
       };
     } catch (err: unknown) {
       if (err instanceof Error) {

@@ -3,30 +3,21 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { SupabaseService } from '../supabase.service';
 import { SignupDto, LoginDto } from './dto/auth.dto';
 import { User, UserResponse } from './user.interface';
-
-interface SupabaseUser {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  phone: string;
-  created_at: string;
-}
-
-interface SupabaseAuthData {
-  password_hash: string;
-}
+import { User as UserDocument, UserDocument as UserDocumentType } from '../schemas/user.schema';
+import { UserAuth, UserAuthDocument } from '../schemas/user-auth.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
-    private supabaseService: SupabaseService,
+    @InjectModel(UserDocument.name) private userModel: Model<UserDocumentType>,
+    @InjectModel(UserAuth.name) private userAuthModel: Model<UserAuthDocument>,
   ) {}
 
   async signup(
@@ -35,14 +26,9 @@ export class AuthService {
     const { firstName, lastName, email, phone, password, role } = signupDto;
 
     // Check if user already exists
-    const existingUserResponse = await this.supabaseService
-      .getClient()
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
+    const existingUser = await this.userModel.findOne({ email }).exec();
 
-    if (existingUserResponse.data) {
+    if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
 
@@ -52,40 +38,26 @@ export class AuthService {
 
     // Create user in database
     const fullName = `${firstName} ${lastName}`;
-    const newUserResponse = await this.supabaseService
-      .getClient()
-      .from('users')
-      .insert({
-        email,
-        name: fullName,
-        role,
-        phone,
-      })
-      .select()
-      .single();
+    const newUser = await this.userModel.create({
+      email,
+      name: fullName,
+      role,
+      phone,
+    });
 
-    if (newUserResponse.error || !newUserResponse.data) {
-      throw new Error(
-        `Failed to create user: ${newUserResponse.error?.message || 'Unknown error'}`,
-      );
-    }
-
-    const typedNewUser = newUserResponse.data as SupabaseUser;
-
-    // Store password hash separately (you might want to create a separate auth table for this)
-    // For now, we'll store it in a simple way - in production, consider using Supabase Auth
-    await this.supabaseService.getClient().from('user_auth').insert({
-      user_id: typedNewUser.id,
+    // Store password hash separately
+    await this.userAuthModel.create({
+      user_id: newUser._id,
       password_hash: hashedPassword,
     });
 
     // Generate tokens
     const payload = {
-      sub: typedNewUser.id,
-      email: typedNewUser.email,
-      name: typedNewUser.name,
-      role: typedNewUser.role,
-      phone: typedNewUser.phone,
+      sub: newUser._id.toString(),
+      email: newUser.email,
+      name: newUser.name,
+      role: newUser.role,
+      phone: newUser.phone,
     };
 
     const token = this.jwtService.sign(payload);
@@ -93,14 +65,14 @@ export class AuthService {
 
     // Convert to UserResponse format
     const userResponse: UserResponse = {
-      id: typedNewUser.id,
+      id: newUser._id.toString(),
       firstName,
       lastName,
-      email: typedNewUser.email,
-      phone: typedNewUser.phone,
-      role: typedNewUser.role as 'client' | 'performer' | 'admin',
-      createdAt: typedNewUser.created_at,
-      updatedAt: typedNewUser.created_at,
+      email: newUser.email,
+      phone: newUser.phone,
+      role: newUser.role as 'client' | 'performer' | 'admin',
+      createdAt: newUser.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: newUser.updatedAt?.toISOString() || new Date().toISOString(),
     };
 
     return {
@@ -116,37 +88,25 @@ export class AuthService {
     const { email, password } = loginDto;
 
     // Get user from database
-    const loginUserResponse = await this.supabaseService
-      .getClient()
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+    const user = await this.userModel.findOne({ email }).exec();
 
-    if (loginUserResponse.error || !loginUserResponse.data) {
+    if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
-
-    const typedUser = loginUserResponse.data as SupabaseUser;
 
     // Get password hash
-    const { data: authData, error: authError } = await this.supabaseService
-      .getClient()
-      .from('user_auth')
-      .select('password_hash')
-      .eq('user_id', typedUser.id)
-      .single();
+    const authData = await this.userAuthModel
+      .findOne({ user_id: user._id })
+      .exec();
 
-    if (authError || !authData) {
+    if (!authData) {
       throw new UnauthorizedException('Invalid email or password');
     }
-
-    const typedAuthData = authData as SupabaseAuthData;
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(
       password,
-      typedAuthData.password_hash,
+      authData.password_hash,
     );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
@@ -154,30 +114,30 @@ export class AuthService {
 
     // Generate tokens
     const payload = {
-      sub: typedUser.id,
-      email: typedUser.email,
-      name: typedUser.name,
-      role: typedUser.role,
-      phone: typedUser.phone,
+      sub: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
     };
 
     const token = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
     // Split name into firstName and lastName
-    const nameParts = typedUser.name.split(' ');
+    const nameParts = user.name.split(' ');
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
     const userResponse: UserResponse = {
-      id: typedUser.id,
+      id: user._id.toString(),
       firstName,
       lastName,
-      email: typedUser.email,
-      phone: typedUser.phone,
-      role: typedUser.role as 'client' | 'performer' | 'admin',
-      createdAt: typedUser.created_at,
-      updatedAt: typedUser.created_at,
+      email: user.email,
+      phone: user.phone,
+      role: user.role as 'client' | 'performer' | 'admin',
+      createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: user.updatedAt?.toISOString() || new Date().toISOString(),
     };
 
     return {

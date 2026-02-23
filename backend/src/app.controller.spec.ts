@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SupabaseService } from './supabase.service';
+import { MongodbService } from './mongodb.service';
 
 describe('AppController', () => {
   let appController: AppController;
 
   beforeEach(async () => {
-    const mockSupabaseService = {
-      getClient: jest.fn(),
+    const mockMongodbService = {
+      testConnection: jest.fn().mockResolvedValue(true),
+      getConnection: jest.fn(),
     };
 
     const app: TestingModule = await Test.createTestingModule({
@@ -16,8 +17,8 @@ describe('AppController', () => {
       providers: [
         AppService,
         {
-          provide: SupabaseService,
-          useValue: mockSupabaseService,
+          provide: MongodbService,
+          useValue: mockMongodbService,
         },
       ],
     }).compile();
