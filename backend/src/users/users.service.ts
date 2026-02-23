@@ -48,19 +48,42 @@ export class UsersService {
     await this.userModel.deleteOne({ clerkId }).exec();
   }
 
-  async setUserRole(clerkId: string, role: string): Promise<UserDocument | null> {
-    // Update Clerk publicMetadata
+  async setUserRole(clerkId: string, role: string): Promise<UserDocument> {
+    // Fetch fresh user data from Clerk
+    const clerkUser = await clerk.users.getUser(clerkId);
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+
+    if (!email) {
+      throw new Error('No email found on Clerk user');
+    }
+
+    // Update Clerk publicMetadata with the role
     await clerk.users.updateUser(clerkId, {
       publicMetadata: { role },
     });
 
-    // Sync to MongoDB
-    return this.userModel
+    // Upsert the user in MongoDB (creates if missing, updates if exists)
+    const user = await this.userModel
       .findOneAndUpdate(
         { clerkId },
-        { $set: { 'metadata.role': role } },
-        { new: true },
+        {
+          $set: {
+            clerkId,
+            email,
+            firstName: clerkUser.firstName || '',
+            lastName: clerkUser.lastName || '',
+            imageUrl: clerkUser.imageUrl || '',
+            metadata: {
+              role,
+              username: clerkUser.username,
+              publicMetadata: clerkUser.publicMetadata,
+            },
+          },
+        },
+        { new: true, upsert: true },
       )
       .exec();
+
+    return user;
   }
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,23 +19,24 @@ export default function LoginPage() {
   const router = useRouter()
   const { login, user, isLoading: authLoading } = useAuth()
 
-  // Redirect if already authenticated
-  if (!authLoading && user) {
-    switch (user.role) {
-      case "client":
-        router.replace("/client/search")
-        break
-      case "performer":
-        router.replace("/performer/dashboard")
-        break
-      case "admin":
-        router.replace("/admin/dashboard")
-        break
-      default:
-        router.replace("/")
+  // Redirect once Clerk resolves the session
+  useEffect(() => {
+    if (!authLoading && user) {
+      switch (user.role) {
+        case "client":
+          router.replace("/client/search")
+          break
+        case "performer":
+          router.replace("/performer/dashboard")
+          break
+        case "admin":
+          router.replace("/admin/dashboard")
+          break
+        default:
+          router.replace("/")
+      }
     }
-    return null
-  }
+  }, [user, authLoading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,14 +45,14 @@ export default function LoginPage() {
 
     try {
       await login(formData.email, formData.password)
-      // Clerk sets the session — user state in context will update and trigger redirect above
+      // Clerk sets the session — useEffect above triggers the redirect
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid email or password. Please try again.")
       setIsLoading(false)
     }
   }
 
-  if (authLoading) {
+  if (authLoading || (!authLoading && user)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full" />
