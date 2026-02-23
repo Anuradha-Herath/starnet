@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../schemas/user.schema';
+import { createClerkClient } from '@clerk/backend';
+
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 @Injectable()
 export class UsersService {
@@ -43,5 +46,21 @@ export class UsersService {
 
   async deleteByClerkId(clerkId: string): Promise<void> {
     await this.userModel.deleteOne({ clerkId }).exec();
+  }
+
+  async setUserRole(clerkId: string, role: string): Promise<UserDocument | null> {
+    // Update Clerk publicMetadata
+    await clerk.users.updateUser(clerkId, {
+      publicMetadata: { role },
+    });
+
+    // Sync to MongoDB
+    return this.userModel
+      .findOneAndUpdate(
+        { clerkId },
+        { $set: { 'metadata.role': role } },
+        { new: true },
+      )
+      .exec();
   }
 }

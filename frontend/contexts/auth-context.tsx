@@ -1,146 +1,186 @@
-"use client"
+﻿"use client"
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { authAPI, type User } from '@/lib/auth-api'
+import React, { createContext, useContext } from 'react'
+import {
+  useUser,
+  useSignIn,
+  useSignUp,
+  useClerk,
+  useAuth as useClerkAuth,
+} from '@clerk/nextjs'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+
+export interface User {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  role: 'client' | 'performer' | 'admin'
+  imageUrl?: string
+}
+
+interface SignupData {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  password: string
+  role: 'client' | 'performer'
+}
 
 interface AuthContextType {
   user: User | null
   isLoading: boolean
   isAuthenticated: boolean
-  hasValidToken: boolean // New flag to indicate if there's a token in storage
+  hasValidToken: boolean
   login: (email: string, password: string) => Promise<void>
-  signup: (userData: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    password: string
-    role: 'client' | 'performer'
-  }) => Promise<void>
-  logout: () => void
+  signup: (userData: SignupData) => Promise<{ needsVerification: boolean }>
+  verifyEmail: (code: string, role: 'client' | 'performer') => Promise<void>
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Clean initial state - let useEffect handle token recovery
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { user: clerkUser, isLoaded: userLoaded } = useUser()
+  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
+  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp()
+  const { signOut } = useClerk()
+  const { getToken } = useClerkAuth()
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      console.log('[AuthContext] Starting auth initialization')
-      
-      const token = authAPI.getToken()
-      const cachedUser = authAPI.getCachedUser()
-      
-      console.log('[AuthContext] TOKEN STATE CHECK:')
-      console.log('- JWT Token exists:', !!token)
-      console.log('- Cached user exists:', !!cachedUser)
-      console.log('- Cached user email:', cachedUser?.email || 'none')
-      
-      if (!token) {
-        console.log('[AuthContext] No token found, clearing auth state')
-        authAPI.removeCachedUser()
-        setUser(null)
-        setIsLoading(false)
-        return
+  // Transform Clerk user to our User interface
+  const user: User | null = clerkUser
+    ? {
+        id: clerkUser.id,
+        firstName: clerkUser.firstName || '',
+        lastName: clerkUser.lastName || '',
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        phone: clerkUser.primaryPhoneNumber?.phoneNumber,
+        role:
+          (clerkUser.publicMetadata?.role as 'client' | 'performer' | 'admin') ||
+          'client',
+        imageUrl: clerkUser.imageUrl,
       }
+    : null
 
-      // Check if token is expired
-      if (authAPI.isTokenExpired()) {
-        console.log('[AuthContext] Token is expired, attempting refresh...')
-        const newToken = await authAPI.refreshAccessToken()
-        
-        if (!newToken) {
-          console.log('[AuthContext] Token refresh failed, clearing auth state')
-          setUser(null)
-          setIsLoading(false)
-          return
-        }
-        
-        console.log('[AuthContext] Token refreshed successfully')
-      }
+  const login = async (email: string, password: string): Promise<void> => {
+    if (!signIn || !setSignInActive) throw new Error('Auth not ready')
 
-      // If we have a cached user and valid token, use it
-      if (cachedUser) {
-        console.log('[AuthContext] Using cached user data')
-        setUser(cachedUser)
-        setIsLoading(false)
-        return
-      }
-      
-      // Validate token by fetching current user
-      try {
-        console.log('[AuthContext] Fetching current user from server...')
-        const currentUser = await authAPI.getCurrentUser()
-        console.log('[AuthContext] User verified successfully:', currentUser.email)
-        setUser(currentUser)
-        authAPI.setCachedUser(currentUser)
-      } catch (error: any) {
-        console.error('[AuthContext] Token validation failed:', error)
-        authAPI.removeToken()
-        authAPI.removeRefreshToken()
-        authAPI.removeCachedUser()
-        setUser(null)
-      }
-      
-      setIsLoading(false)
-    }
-    
-    initializeAuth()
-  }, [])
-
-  const login = async (email: string, password: string) => {
-    const response = await authAPI.login({ email, password })
-    const newToken = authAPI.getToken()
-    
-    console.log('[AuthContext] LOGIN SUCCESS:')
-    console.log('- JWT Token after login:', newToken ? `${newToken.substring(0, 50)}...` : 'null')
-    console.log('- Token length:', newToken ? newToken.length : 0)
-    console.log('- User data:', response.user.email)
-    
-    setUser(response.user)
-    authAPI.setCachedUser(response.user)
-  }
-
-  const signup = async (userData: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    password: string
-    role: 'client' | 'performer'
-  }) => {
-    const response = await authAPI.signup(userData)
-    // We intentionally do NOT log the user in after signup
-    authAPI.removeToken()
-    authAPI.removeRefreshToken()
-    authAPI.removeCachedUser()
-    setUser(null)
-  }
-
-  const logout = async () => {
-    console.log('[AuthContext] Logging out user, clearing all auth state')
     try {
-      await authAPI.logout()
-    } catch (error) {
-      console.warn('[AuthContext] Logout failed:', error)
+      const result = await signIn.create({
+        identifier: email,
+        password,
+      })
+
+      if (result.status === 'complete') {
+        await setSignInActive({ session: result.createdSessionId })
+      } else {
+        throw new Error('Login failed. Please check your credentials.')
+      }
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message
+      throw new Error(msg || 'Login failed. Please check your credentials.')
     }
-    setUser(null)
   }
 
-  const value = {
-    user,
-    isLoading,
-  isAuthenticated: !!user,
-  hasValidToken: authAPI.isAuthenticated(),
-    login,
-    signup,
-    logout,
+  const signup = async (userData: SignupData): Promise<{ needsVerification: boolean }> => {
+    if (!signUp || !setSignUpActive) throw new Error('Auth not ready')
+
+    try {
+      const result = await signUp.create({
+        emailAddress: userData.email,
+        password: userData.password,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+      })
+
+      if (result.status === 'complete') {
+        await setSignUpActive({ session: result.createdSessionId })
+        await setRoleInBackend(userData.role)
+        return { needsVerification: false }
+      }
+
+      // Email verification required
+      if (
+        result.status === 'missing_requirements' &&
+        result.unverifiedFields.includes('email_address')
+      ) {
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+        return { needsVerification: true }
+      }
+
+      throw new Error('Signup incomplete. Please try again.')
+    } catch (err: any) {
+      if (err?.errors) {
+        const msg = err.errors[0]?.longMessage || err.errors[0]?.message
+        throw new Error(msg || 'Signup failed. Please try again.')
+      }
+      throw err
+    }
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  const verifyEmail = async (code: string, role: 'client' | 'performer'): Promise<void> => {
+    if (!signUp || !setSignUpActive) throw new Error('Auth not ready')
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code })
+
+      if (result.status === 'complete') {
+        await setSignUpActive({ session: result.createdSessionId })
+        await setRoleInBackend(role)
+      } else {
+        throw new Error('Verification failed. Please try again.')
+      }
+    } catch (err: any) {
+      if (err?.errors) {
+        const msg = err.errors[0]?.longMessage || err.errors[0]?.message
+        throw new Error(msg || 'Verification failed. Please try again.')
+      }
+      throw err
+    }
+  }
+
+  const setRoleInBackend = async (role: string): Promise<void> => {
+    try {
+      const token = await getToken()
+      await fetch(`${API_BASE_URL}/users/role`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role }),
+      })
+    } catch (err) {
+      console.error('[AuthContext] Failed to set role:', err)
+    }
+  }
+
+  const logout = async (): Promise<void> => {
+    await signOut()
+  }
+
+  const isAuthenticated = !!clerkUser
+  const isLoading = !userLoaded || !signInLoaded || !signUpLoaded
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        hasValidToken: isAuthenticated,
+        login,
+        signup,
+        verifyEmail,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

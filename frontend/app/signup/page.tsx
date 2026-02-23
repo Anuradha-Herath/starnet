@@ -11,7 +11,7 @@ import { Music, Eye, EyeOff, ArrowLeft, User, Mic } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { RedirectGuard } from "@/components/redirect-guard"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 
 type UserRole = "client" | "performer"
 
@@ -30,9 +30,11 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyCode, setVerifyCode] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { signup } = useAuth()
+  const { signup, verifyEmail } = useAuth()
 
   // Get role from URL params if provided
   useState(() => {
@@ -68,8 +70,8 @@ export default function SignupPage() {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long!")
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long!")
       return
     }
 
@@ -78,7 +80,7 @@ export default function SignupPage() {
     setSuccess(null)
 
     try {
-      await signup({
+      const { needsVerification } = await signup({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -87,14 +89,12 @@ export default function SignupPage() {
         role: selectedRole,
       })
 
-      // Show success message
-      setSuccess("Account created successfully! Redirecting to sign in...")
-      
-      // Redirect to login page after 2 seconds
-      setTimeout(() => {
-        router.push("/login")
-      }, 2000)
-
+      if (needsVerification) {
+        setVerifying(true)
+      } else {
+        const destination = selectedRole === 'performer' ? '/performer/dashboard' : '/client/search'
+        router.replace(destination)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create account. Please try again.")
     } finally {
@@ -102,12 +102,90 @@ export default function SignupPage() {
     }
   }
 
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedRole) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      await verifyEmail(verifyCode, selectedRole)
+      const destination = selectedRole === 'performer' ? '/performer/dashboard' : '/client/search'
+      router.replace(destination)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid verification code.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          <Card className="glass-card p-8">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary to-primary-light flex items-center justify-center">
+                <Music className="w-8 h-8 text-gray" />
+              </div>
+              <h1 className="text-2xl font-bold gradient-text mb-2">Verify your email</h1>
+              <p className="text-gray-600">We sent a 6-digit code to <strong>{formData.email}</strong></p>
+            </div>
+
+            <form onSubmit={handleVerify} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={verifyCode}
+                  onChange={setVerifyCode}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <div id="clerk-captcha" />
+
+              <Button
+                type="submit"
+                disabled={isLoading || verifyCode.length < 6}
+                className="w-full glow-button text-lg py-3"
+              >
+                {isLoading ? "Verifying..." : "Verify Email"}
+              </Button>
+            </form>
+
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Didn&apos;t get it?{" "}
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => { setVerifying(false); setVerifyCode(""); setError(null) }}
+              >
+                Go back
+              </button>
+            </p>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   if (!selectedRole) {
     return (
-      <RedirectGuard redirectAuthenticated={true}>
       <div className="min-h-screen flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-4xl">
-          {/* Back to Home */}
           <Link href="/" className="inline-flex items-center text-gray-800 hover:text-gray-900 mb-8 smooth-transition">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
@@ -156,15 +234,13 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
-      </RedirectGuard>
     )
   }
 
   const currentRole = roles.find((role) => role.id === selectedRole)!
 
   return (
-    <RedirectGuard redirectAuthenticated={true}>
-      <div className="min-h-screen flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
         {/* Back to Role Selection */}
         <button
@@ -319,8 +395,10 @@ export default function SignupPage() {
               </label>
             </div>
 
-            <Button type="submit" disabled={isLoading || success !== null} className="w-full glow-button text-lg py-3">
-              {success ? "Redirecting..." : isLoading ? "Creating Account..." : `Create ${currentRole.name} Account`}
+            <div id="clerk-captcha" />
+
+            <Button type="submit" disabled={isLoading} className="w-full glow-button text-lg py-3">
+              {isLoading ? "Creating Account..." : `Create ${currentRole.name} Account`}
             </Button>
           </form>
 
@@ -335,6 +413,5 @@ export default function SignupPage() {
         </Card>
       </div>
     </div>
-    </RedirectGuard>
   )
 }

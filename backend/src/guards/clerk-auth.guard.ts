@@ -1,5 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { clerkClient } from '@clerk/clerk-sdk-node';
+import { verifyToken } from '@clerk/backend';
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
@@ -13,7 +13,9 @@ export class ClerkAuthGuard implements CanActivate {
 
     try {
       // Verify the session token with Clerk
-      const sessionClaims = await clerkClient.verifyToken(token);
+      const sessionClaims = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+      });
       
       // Attach the session claims to the request object
       request.auth = sessionClaims;
