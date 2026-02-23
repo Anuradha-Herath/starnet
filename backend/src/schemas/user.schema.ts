@@ -6,16 +6,22 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: true })
+  clerkId: string; // Clerk user ID
+
+  @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop({ required: true })
-  name: string;
+  @Prop()
+  firstName?: string;
 
-  @Prop({ required: true })
-  role: string;
+  @Prop()
+  lastName?: string;
 
-  @Prop({ required: true })
-  phone: string;
+  @Prop()
+  imageUrl?: string;
+
+  @Prop({ type: Object })
+  metadata?: Record<string, any>;
 
   createdAt?: Date;
   updatedAt?: Date;

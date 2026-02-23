@@ -5,14 +5,16 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MongodbService } from './mongodb.service';
-import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health.controller';
+import { UsersModule } from './users/users.module';
+import { WebhookModule } from './webhooks/webhook.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/starnet'),
-    AuthModule,
+    UsersModule,
+    WebhookModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
