@@ -20,6 +20,16 @@ export class User {
   @Prop()
   imageUrl?: string;
 
+  @Prop()
+  phone?: string;
+
+  @Prop({
+    type: String,
+    enum: ['client', 'performer', 'admin'],
+    default: 'client',
+  })
+  role: string;
+
   @Prop({ type: Object })
   metadata?: Record<string, any>;
 
