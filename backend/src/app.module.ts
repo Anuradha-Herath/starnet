@@ -11,7 +11,7 @@ import { WebhookModule } from './webhooks/webhook.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/starnet'),
     UsersModule,
     WebhookModule,
